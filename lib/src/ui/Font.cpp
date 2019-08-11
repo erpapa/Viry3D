@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,8 +19,9 @@
 #include "io/File.h"
 #include "memory/Memory.h"
 #include "graphics/Texture.h"
+#include "graphics/Image.h"
 #include "Debug.h"
-#include "Application.h"
+#include "Engine.h"
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include "ftoutln.h"
@@ -77,7 +78,7 @@ namespace Viry3D
                 break;
             }
 
-            font = Font::LoadFromFile(Application::Instance()->GetDataPath() + "/font/" + file);
+            font = Font::LoadFromFile(Engine::Instance()->GetDataPath() + "/font/" + file);
 
             m_fonts.Add(type, font);
         }
@@ -91,14 +92,21 @@ namespace Viry3D
 
 		if (File::Exist(file))
 		{
-			FT_Face face;
-			auto err = FT_New_Face(g_ft_lib, file.CString(), 0, &face);
+            auto buffer = File::ReadAllBytes(file);
+
+            FT_Face face;
+            auto err = FT_New_Memory_Face(g_ft_lib, buffer.Bytes(), buffer.Size(), 0, &face);
 			if (!err)
 			{
 				font = Ref<Font>(new Font());
 				font->m_font = (void*) face;
+                font->m_face_buffer = buffer;
 			}
 		}
+        else
+        {
+            Log("Font::LoadFromFile font file not exist: %s", file.CString());
+        }
 
 		return font;
 	}
@@ -119,7 +127,10 @@ namespace Viry3D
 
 	GlyphInfo Font::GetGlyph(char32_t c, int size, bool bold, bool italic, bool mono)
 	{
-		int size_key = size | (bold ? (1 << 24) : 0) | (italic ? (1 << 16) : 0);
+		int size_key = size |
+			(bold ? (1 << 31) : 0) |
+			(italic ? (1 << 30) : 0) |
+			(mono ? (1 << 29) : 0);
 
 		Map<int, GlyphInfo>* p_size_glyphs;
 		if (!m_glyphs.TryGet(c, &p_size_glyphs))
@@ -150,7 +161,7 @@ namespace Viry3D
 		p_glyph->mono = mono;
 
 		FT_Face face = (FT_Face) m_font;
-        FT_Set_Char_Size(face, size << 6, size << 6, 96, 96);
+        FT_Set_Char_Size(face, size << 6, size << 6, 0, 0);
 
 		FT_GlyphSlot slot = face->glyph;
 		auto glyph_index = FT_Get_Char_Index(face, c);
@@ -190,58 +201,54 @@ namespace Viry3D
 		}
 
 		p_glyph->glyph_index = glyph_index;
-        p_glyph->witdh = slot->bitmap.width;
+        p_glyph->width = slot->bitmap.width;
         p_glyph->height = slot->bitmap.rows;
 		p_glyph->bearing_x = slot->bitmap_left;
 		p_glyph->bearing_y = slot->bitmap_top;
 		p_glyph->advance_x = (int) (slot->advance.x >> 6);
 		p_glyph->advance_y = (int) (slot->advance.y >> 6);
 
-        if (p_glyph->witdh > 0 && p_glyph->height > 0)
+        if (p_glyph->width > 0 && p_glyph->height > 0)
         {
-            ByteBuffer pixels = ByteBuffer(p_glyph->witdh * p_glyph->height * 4);
+            ByteBuffer pixels = ByteBuffer(p_glyph->width * p_glyph->height * 4);
 
-            if (mono)
+            if (mono || slot->bitmap.pixel_mode == FT_PIXEL_MODE_MONO)
             {
-                for (int i = 0; i < p_glyph->height; i++)
+                for (int i = 0; i < p_glyph->height; ++i)
                 {
-                    for (int j = 0; j < p_glyph->witdh; j++)
+                    for (int j = 0; j < p_glyph->width; ++j)
                     {
                         unsigned char bit = slot->bitmap.buffer[i * slot->bitmap.pitch + j / 8] & (0x1 << (7 - j % 8));
                         bit = bit == 0 ? 0 : 255;
 
-                        pixels[i * p_glyph->witdh * 4 + j * 4 + 0] = 255;
-                        pixels[i * p_glyph->witdh * 4 + j * 4 + 1] = 255;
-                        pixels[i * p_glyph->witdh * 4 + j * 4 + 2] = 255;
-                        pixels[i * p_glyph->witdh * 4 + j * 4 + 3] = bit;
+                        pixels[i * p_glyph->width * 4 + j * 4 + 0] = 255;
+                        pixels[i * p_glyph->width * 4 + j * 4 + 1] = 255;
+                        pixels[i * p_glyph->width * 4 + j * 4 + 2] = 255;
+                        pixels[i * p_glyph->width * 4 + j * 4 + 3] = bit;
                     }
                 }
             }
             else
             {
-                for (int i = 0; i < p_glyph->height; i++)
+                for (int i = 0; i < p_glyph->height; ++i)
                 {
-                    for (int j = 0; j < p_glyph->witdh; j++)
+                    for (int j = 0; j < p_glyph->width; ++j)
                     {
                         unsigned char alpha = slot->bitmap.buffer[i * slot->bitmap.pitch + j];
 
-                        pixels[i * p_glyph->witdh * 4 + j * 4 + 0] = 255;
-                        pixels[i * p_glyph->witdh * 4 + j * 4 + 1] = 255;
-                        pixels[i * p_glyph->witdh * 4 + j * 4 + 2] = 255;
-                        pixels[i * p_glyph->witdh * 4 + j * 4 + 3] = alpha;
+                        pixels[i * p_glyph->width * 4 + j * 4 + 0] = 255;
+                        pixels[i * p_glyph->width * 4 + j * 4 + 1] = 255;
+                        pixels[i * p_glyph->width * 4 + j * 4 + 2] = 255;
+                        pixels[i * p_glyph->width * 4 + j * 4 + 3] = alpha;
                     }
                 }
             }
 
-            p_glyph->texture = Texture::CreateTexture2DFromMemory(
-                pixels,
-                p_glyph->witdh,
-                p_glyph->height,
-                TextureFormat::R8G8B8A8,
-                FilterMode::Linear,
-                SamplerAddressMode::ClampToEdge,
-                false,
-                false);
+            p_glyph->image = RefMake<Image>();
+            p_glyph->image->width = p_glyph->width;
+            p_glyph->image->height = p_glyph->height;
+            p_glyph->image->format = ImageFormat::R8G8B8A8;
+            p_glyph->image->data = pixels;
         }
 
 		return *p_glyph;

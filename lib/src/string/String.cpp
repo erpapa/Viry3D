@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ namespace Viry3D
 
 		result.m_string = buffer;
 
-		Memory::Free(buffer);
+		Memory::Free(buffer, size + 1);
 
 		return result;
 	}
@@ -63,7 +63,7 @@ namespace Viry3D
 
 		int index;
 		char a, b, c;
-		for (int i = 0; i < round; i++)
+		for (int i = 0; i < round; ++i)
 		{
 			a = 0; b = 0; c = 0;
 
@@ -80,7 +80,7 @@ namespace Viry3D
 			str[i * 4 + 3] = BASE64_TABLE[c & 0x3f];
 		}
 
-		for (int i = size_pad - size, j = 0; i > 0; i--, j++)
+		for (int i = size_pad - size, j = 0; i > 0; --i, ++j)
 		{
 			str[(round - 1) * 4 + 3 - j] = '=';
 		}
@@ -353,12 +353,34 @@ namespace Viry3D
 
 	bool String::StartsWith(const String& str) const
 	{
-		return this->IndexOf(str) == 0;
+        if (str.Size() == 0)
+        {
+            return true;
+        }
+        else if (this->Size() < str.Size())
+        {
+            return false;
+        }
+        else
+        {
+            return Memory::Compare(&(*this)[0], &str[0], str.Size()) == 0;
+        }
 	}
 
 	bool String::EndsWith(const String& str) const
 	{
-		return this->IndexOf(str) == this->Size() - str.Size();
+        if (str.Size() == 0)
+        {
+            return true;
+        }
+        else if (this->Size() < str.Size())
+        {
+            return false;
+        }
+        else
+        {
+            return Memory::Compare(&(*this)[this->Size() - str.Size()], &str[0], str.Size()) == 0;
+        }
 	}
 
 	String String::Substring(int start, int count) const
@@ -372,7 +394,7 @@ namespace Viry3D
 	{
 		int byte_count = 0;
 
-		for (int i = 0; i < 8; i++)
+		for (int i = 0; i < 8; ++i)
 		{
 			unsigned char c = utf8[0];
 
@@ -394,7 +416,7 @@ namespace Viry3D
 		{
 			char32_t code = 0;
 
-			for (int i = 0; i < byte_count; i++)
+			for (int i = 0; i < byte_count; ++i)
 			{
 				unsigned int c = utf8[i];
 				unsigned char part;
@@ -452,7 +474,7 @@ namespace Viry3D
 		}
 
 		std::vector<char> bytes;
-		for (int i = 0; i < byte_count - 1; i++)
+		for (int i = 0; i < byte_count - 1; ++i)
 		{
 			bytes.push_back((c32 & 0x3f) | 0x80);
 			c32 >>= 6;
@@ -467,7 +489,7 @@ namespace Viry3D
 			bytes.push_back((char) (c32));
 		}
 
-		for (int i = 0; i < byte_count; i++)
+		for (int i = 0; i < byte_count; ++i)
 		{
 			buffer.Add(bytes[byte_count - 1 - i]);
 		}
@@ -481,7 +503,7 @@ namespace Viry3D
 
 		int size = (int) m_string.size();
 
-		for (int i = 0; i < size; i++)
+		for (int i = 0; i < size; ++i)
 		{
 			char32_t unicode32 = 0;
 			int byte_count = Utf8ToUnicode32(&m_string[i], unicode32);
@@ -505,7 +527,7 @@ namespace Viry3D
 	{
 		Vector<char> str;
 
-		for (int i = 0; unicode32[i] != 0; i++)
+		for (int i = 0; unicode32[i] != 0; ++i)
 		{
 			char32_t c32 = unicode32[i];
 
@@ -517,6 +539,23 @@ namespace Viry3D
 
 		m_string = &str[0];
 	}
+
+    String::String(const char32_t* unicode32, int size)
+    {
+        Vector<char> str;
+
+        for (int i = 0; i < size; ++i)
+        {
+            char32_t c32 = unicode32[i];
+
+            auto bytes = Unicode32ToUtf8(c32);
+            str.AddRange(&bytes[0], bytes.Size());
+        }
+
+        str.Add(0);
+
+        m_string = &str[0];
+    }
 
 	String String::ToLower() const
 	{

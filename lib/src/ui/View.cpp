@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,9 +20,21 @@
 #include "Debug.h"
 #include "memory/Memory.h"
 #include "graphics/Camera.h"
+#include "graphics/Texture.h"
+#include "graphics/Image.h"
 
 namespace Viry3D
 {
+    int ViewMesh::GetTextureOrImageWidth() const
+    {
+        return texture ? texture->GetWidth() : image->width;
+    }
+
+    int ViewMesh::GetTextureOrImageHeight() const
+    {
+        return texture ? texture->GetHeight() : image->height;
+    }
+
 	View::View():
 		m_canvas(nullptr),
         m_parent_view(nullptr),
@@ -31,11 +43,12 @@ namespace Viry3D
 		m_pivot(0.5f, 0.5f),
 		m_size(100, 100),
 		m_offset(0, 0),
-        m_local_rotation(Quaternion::Identity()),
+        m_margin(0, 0, 0, 0),
+        m_local_rotation(0, 0, 0),
         m_local_scale(1, 1),
+        m_clip_rect(false),
         m_rect(0, 0, 0, 0),
-        m_rotation(Quaternion::Identity()),
-        m_scale(1, 1)
+        m_vertex_matrix(Matrix4x4::Identity())
 	{
 	
 	}
@@ -100,6 +113,19 @@ namespace Viry3D
         this->MarkCanvasDirty();
     }
 
+    void View::ClearSubviews()
+    {
+        Vector<Ref<View>> subviews;
+        for (int i = 0; i < this->GetSubviewCount(); ++i)
+        {
+            subviews.Add(this->GetSubview(i));
+        }
+        for (int i = 0; i < subviews.Size(); ++i)
+        {
+            this->RemoveSubview(subviews[i]);
+        }
+    }
+
 	void View::SetColor(const Color& color)
 	{
 		m_color = color;
@@ -124,15 +150,54 @@ namespace Viry3D
         this->MarkCanvasDirty();
 	}
 
+    Vector2i View::GetCalculatedSize()
+    {
+        Vector2i size = m_size;
+        
+        if (size.x == VIEW_SIZE_FILL_PARENT ||
+            size.y == VIEW_SIZE_FILL_PARENT)
+        {
+            Vector2i parent_size;
+
+            if (m_parent_view)
+            {
+                parent_size = m_parent_view->GetCalculatedSize();
+            }
+            else
+            {
+                parent_size.x = m_canvas->GetCamera()->GetTargetWidth();
+                parent_size.y = m_canvas->GetCamera()->GetTargetHeight();
+            }
+
+            if (size.x == VIEW_SIZE_FILL_PARENT)
+            {
+                size.x = parent_size.x - (int) (m_margin.x + m_margin.z);
+            }
+
+            if (size.y == VIEW_SIZE_FILL_PARENT)
+            {
+                size.y = parent_size.y - (int) (m_margin.y + m_margin.w);
+            }
+        }
+
+        return size;
+    }
+
 	void View::SetOffset(const Vector2i& offset)
 	{
 		m_offset = offset;
         this->MarkCanvasDirty();
 	}
 
-    void View::SetLocalRotation(const Quaternion& rotation)
+    void View::SetMargin(const Vector4& margin)
     {
-        m_local_rotation = rotation;
+        m_margin = margin;
+        this->MarkCanvasDirty();
+    }
+
+    void View::SetLocalRotation(const Quaternion& rot)
+    {
+        m_local_rotation = rot;
         this->MarkCanvasDirty();
     }
 
@@ -142,9 +207,55 @@ namespace Viry3D
         this->MarkCanvasDirty();
     }
 
+    void View::EnableClipRect(bool enable)
+    {
+        m_clip_rect = enable;
+        this->MarkCanvasDirty();
+    }
+
+    Rect View::GetClipRect() const
+    {
+        if (this->IsClipRect())
+        {
+            Rect rect = Rect((float) m_rect.x, (float) -m_rect.y, (float) m_rect.w, (float) m_rect.h);
+
+            Vector3 vs[4];
+            vs[0] = Vector3(rect.x, rect.y, 0);
+            vs[1] = Vector3(rect.x, rect.y - rect.h, 0);
+            vs[2] = Vector3(rect.x + rect.w, rect.y - rect.h, 0);
+            vs[3] = Vector3(rect.x + rect.w, rect.y, 0);
+
+            for (int i = 0; i < 4; ++i)
+            {
+                vs[i] = m_vertex_matrix.MultiplyPoint3x4(vs[i]);
+            }
+
+            float x = vs[0].x;
+            float y = -vs[0].y;
+            float w = vs[3].x - vs[0].x;
+            float h = vs[0].y - vs[1].y;
+            float canvas_w = (float) this->GetCanvas()->GetCamera()->GetTargetWidth();
+            float canvas_h = (float) this->GetCanvas()->GetCamera()->GetTargetHeight();
+
+            return Rect(x / canvas_w, y / canvas_h, w / canvas_w, h / canvas_h);
+        }
+        else
+        {
+            return Rect(0, 0, 1, 1);
+        }
+    }
+
+    void View::Update()
+    {
+        for (auto& i : m_subviews)
+        {
+            i->Update();
+        }
+    }
+
     void View::UpdateLayout()
     {
-        Rect parent_rect;
+        Recti parent_rect;
 
         if (m_parent_view)
         {
@@ -152,7 +263,7 @@ namespace Viry3D
         }
         else
         {
-            parent_rect = Rect(0, 0, (float) m_canvas->GetCamera()->GetTargetWidth(), (float) m_canvas->GetCamera()->GetTargetHeight());
+            parent_rect = Recti(0, 0, m_canvas->GetCamera()->GetTargetWidth(), m_canvas->GetCamera()->GetTargetHeight());
         }
 
         Vector2i local_pos;
@@ -163,11 +274,11 @@ namespace Viry3D
         }
         else if (m_alignment & ViewAlignment::HCenter)
         {
-            local_pos.x = (int) (parent_rect.width / 2);
+            local_pos.x = parent_rect.w / 2;
         }
         else if (m_alignment & ViewAlignment::Right)
         {
-            local_pos.x = (int) parent_rect.width;
+            local_pos.x = parent_rect.w;
         }
 
         if (m_alignment & ViewAlignment::Top)
@@ -176,32 +287,40 @@ namespace Viry3D
         }
         else if (m_alignment & ViewAlignment::VCenter)
         {
-            local_pos.y = (int) (parent_rect.height / 2);
+            local_pos.y = parent_rect.h / 2;
         }
         else if (m_alignment & ViewAlignment::Bottom)
         {
-            local_pos.y = (int) parent_rect.height;
+            local_pos.y = parent_rect.h;
         }
 
         local_pos += m_offset;
 
-        m_rect.x = parent_rect.x + local_pos.x - Mathf::Round(m_pivot.x * m_size.x);
-        m_rect.y = parent_rect.y + local_pos.y - Mathf::Round(m_pivot.y * m_size.y);
-        m_rect.width = (float) m_size.x;
-        m_rect.height = (float) m_size.y;
+        Vector2i size = this->GetSize();
 
-        if (m_parent_view)
+        if (size.x == VIEW_SIZE_FILL_PARENT)
         {
-            m_rotation = m_parent_view->GetRotation() * m_local_rotation;
-
-            Vector2 parent_scale = m_parent_view->GetScale();
-            m_scale = Vector2(parent_scale.x * m_local_scale.x, parent_scale.y * m_local_scale.y);
+            m_rect.x = parent_rect.x + (int) m_margin.x;
+            m_rect.w = parent_rect.w - (int) (m_margin.x + m_margin.z);
         }
         else
         {
-            m_rotation = m_local_rotation;
-            m_scale = m_local_scale;
+            m_rect.x = parent_rect.x + local_pos.x - Mathf::RoundToInt(m_pivot.x * size.x);
+            m_rect.w = size.x;
         }
+
+        if (size.y == VIEW_SIZE_FILL_PARENT)
+        {
+            m_rect.y = parent_rect.y + (int) m_margin.y;
+            m_rect.h = parent_rect.h - (int) (m_margin.y + m_margin.w);
+        }
+        else
+        {
+            m_rect.y = parent_rect.y + local_pos.y - Mathf::RoundToInt(m_pivot.y * size.y);
+            m_rect.h = size.y;
+        }
+
+        this->ComputeVerticesMatrix();
 
         for (auto& i : m_subviews)
         {
@@ -209,35 +328,42 @@ namespace Viry3D
         }
     }
 
-    void View::ComputeVerticesRectAndMatrix(Rect& rect, Matrix4x4& matrix)
+    void View::OnResize(int width, int height)
     {
-        int canvas_width = this->GetCanvas()->GetCamera()->GetTargetWidth();
-        int canvas_height = this->GetCanvas()->GetCamera()->GetTargetHeight();
-        int x = -canvas_width / 2 + (int) m_rect.x;
-        int y = canvas_height / 2 - (int) m_rect.y;
-
-        rect = Rect((float) x, (float) y, m_rect.width, m_rect.height);
-
-        Vector3 pivot_pos;
-        pivot_pos.x = x + Mathf::Round(m_pivot.x * m_rect.width);
-        pivot_pos.y = y - Mathf::Round(m_pivot.y * m_rect.height);
-        pivot_pos.z = 0;
-
-        matrix = Matrix4x4::Translation(pivot_pos) * Matrix4x4::Rotation(m_rotation) * Matrix4x4::Scaling(m_scale) * Matrix4x4::Translation(-pivot_pos);
+        for (auto& i : m_subviews)
+        {
+            i->UpdateLayout();
+        }
     }
 
-    void View::FillSelfMeshes(Vector<ViewMesh>& meshes)
+    void View::ComputeVerticesMatrix()
     {
-        Rect rect;
-        Matrix4x4 matrix;
-        this->ComputeVerticesRectAndMatrix(rect, matrix);
+        int x = m_rect.x;
+        int y = -m_rect.y;
 
-        Vertex vs[4];
+        Vector3 pivot_pos;
+        pivot_pos.x = x + Mathf::Round(m_pivot.x * m_rect.w);
+        pivot_pos.y = y - Mathf::Round(m_pivot.y * m_rect.h);
+        pivot_pos.z = 0;
+
+        m_vertex_matrix = Matrix4x4::Translation(pivot_pos) * Matrix4x4::Rotation(m_local_rotation) * Matrix4x4::Scaling(Vector3(m_local_scale.x, m_local_scale.y, 1)) * Matrix4x4::Translation(-pivot_pos);
+
+        if (m_parent_view)
+        {
+            m_vertex_matrix = m_parent_view->GetVertexMatrix() * m_vertex_matrix;
+        }
+    }
+
+    void View::FillSelfMeshes(Vector<ViewMesh>& meshes, const Rect& clip_rect)
+    {
+        Rect rect = Rect((float) m_rect.x, (float) -m_rect.y, (float) m_rect.w, (float) m_rect.h);
+
+        Mesh::Vertex vs[4];
         Memory::Zero(&vs[0], sizeof(vs));
         vs[0].vertex = Vector3(rect.x, rect.y, 0);
-        vs[1].vertex = Vector3(rect.x, rect.y - rect.height, 0);
-        vs[2].vertex = Vector3(rect.x + rect.width, rect.y - rect.height, 0);
-        vs[3].vertex = Vector3(rect.x + rect.width, rect.y, 0);
+        vs[1].vertex = Vector3(rect.x, rect.y - rect.h, 0);
+        vs[2].vertex = Vector3(rect.x + rect.w, rect.y - rect.h, 0);
+        vs[3].vertex = Vector3(rect.x + rect.w, rect.y, 0);
         vs[0].color = m_color;
         vs[1].color = m_color;
         vs[2].color = m_color;
@@ -249,7 +375,7 @@ namespace Viry3D
 
         for (int i = 0; i < 4; ++i)
         {
-            vs[i].vertex = matrix.MultiplyPoint3x4(vs[i].vertex);
+            vs[i].vertex = m_vertex_matrix.MultiplyPoint3x4(vs[i].vertex);
         }
 
         ViewMesh mesh;
@@ -257,60 +383,64 @@ namespace Viry3D
         mesh.indices.AddRange({ 0, 1, 2, 0, 2, 3 });
         mesh.view = this;
         mesh.base_view = true;
+        mesh.clip_rect = Rect::Min(this->GetClipRect(), clip_rect);
+
         meshes.Add(mesh);
     }
 
-    void View::FillMeshes(Vector<ViewMesh>& meshes)
+    void View::FillMeshes(Vector<ViewMesh>& meshes, const Rect& clip_rect)
     {
-        this->FillSelfMeshes(meshes);
+        this->FillSelfMeshes(meshes, clip_rect);
+
+        Rect clip = Rect::Min(this->GetClipRect(), clip_rect);
 
         for (auto& i : m_subviews)
         {
-            i->FillMeshes(meshes);
+            i->FillMeshes(meshes, clip);
         }
     }
 
-    bool View::OnTouchDownInside() const
+    bool View::OnTouchDownInside(const Vector2i& pos) const
     {
         if (m_on_touch_down_inside)
         {
-            return m_on_touch_down_inside();
+            return m_on_touch_down_inside(pos);
         }
         return false;
     }
 
-    bool View::OnTouchMoveInside() const
+    bool View::OnTouchMoveInside(const Vector2i& pos) const
     {
         if (m_on_touch_move_inside)
         {
-            return m_on_touch_move_inside();
+            return m_on_touch_move_inside(pos);
         }
         return false;
     }
     
-    bool View::OnTouchUpInside() const
+    bool View::OnTouchUpInside(const Vector2i& pos) const
     {
         if (m_on_touch_up_inside)
         {
-            return m_on_touch_up_inside();
+            return m_on_touch_up_inside(pos);
         }
         return false;
     }
 
-    bool View::OnTouchUpOutside() const
+    bool View::OnTouchUpOutside(const Vector2i& pos) const
     {
         if (m_on_touch_up_outside)
         {
-            return m_on_touch_up_outside();
+            return m_on_touch_up_outside(pos);
         }
         return false;
     }
 
-    bool View::OnTouchDrag() const
+    bool View::OnTouchDrag(const Vector2i& pos) const
     {
         if (m_on_touch_drag)
         {
-            return m_on_touch_drag();
+            return m_on_touch_drag(pos);
         }
         return false;
     }

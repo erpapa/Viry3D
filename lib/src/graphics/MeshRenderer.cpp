@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,71 +16,33 @@
 */
 
 #include "MeshRenderer.h"
-#include "Mesh.h"
-#include "BufferObject.h"
 
 namespace Viry3D
 {
-    MeshRenderer::MeshRenderer():
-        m_submesh(-1)
+    MeshRenderer::MeshRenderer()
     {
 
     }
-
+    
     MeshRenderer::~MeshRenderer()
     {
-        if (m_draw_buffer)
-        {
-            m_draw_buffer->Destroy(Display::Instance()->GetDevice());
-            m_draw_buffer.reset();
-        }
+
     }
-
-    Ref<BufferObject> MeshRenderer::GetVertexBuffer() const
-    {
-        Ref<BufferObject> buffer;
-
-        if (m_mesh)
-        {
-            buffer = m_mesh->GetVertexBuffer();
-        }
-
-        return buffer;
-    }
-
-    Ref<BufferObject> MeshRenderer::GetIndexBuffer() const
-    {
-        Ref<BufferObject> buffer;
-
-        if (m_mesh)
-        {
-            buffer = m_mesh->GetIndexBuffer();
-        }
-
-        return buffer;
-    }
-
-    void MeshRenderer::SetMesh(const Ref<Mesh>& mesh, int submesh)
+    
+    void MeshRenderer::SetMesh(const Ref<Mesh>& mesh)
     {
         m_mesh = mesh;
-        m_submesh = submesh;
-
-        VkDrawIndexedIndirectCommand draw;
-        draw.indexCount = m_mesh->GetSubmesh(m_submesh).index_count;
-        draw.instanceCount = 1;
-        draw.firstIndex = m_mesh->GetSubmesh(m_submesh).index_first;
-        draw.vertexOffset = 0;
-        draw.firstInstance = 0;
-
-        if (!m_draw_buffer)
+    }
+    
+    Vector<filament::backend::RenderPrimitiveHandle> MeshRenderer::GetPrimitives()
+    {
+        Vector<filament::backend::RenderPrimitiveHandle> primitives;
+        
+        if (m_mesh)
         {
-            m_draw_buffer = Display::Instance()->CreateBuffer(&draw, sizeof(draw), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+            primitives = m_mesh->GetPrimitives();
         }
-        else
-        {
-            Display::Instance()->UpdateBuffer(m_draw_buffer, 0, &draw, sizeof(draw));
-        }
-
-        this->MarkInstanceCmdDirty();
+        
+        return primitives;
     }
 }

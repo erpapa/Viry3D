@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -34,6 +34,7 @@ namespace Viry3D
 		static const float Rad2Deg;
 		static const float MaxFloatValue;
 		static const float MinFloatValue;
+        static const float ToLinearSpace;
 
 		template<class T>
 		static T Max(T a, T b) { return a > b ? a : b; }
@@ -50,6 +51,8 @@ namespace Viry3D
 		static bool FloatEqual(float a, float b) { return fabs(a - b) < Epsilon; }
 		static float Round(float f);//ËÄÉáÎåÈë
 		static int RoundToInt(float f);
+		static float Floor(float f) { return floor(f); }
+		static int FloorToInt(float f) { return (int) floor(f); }
 		static float Sign(float f) { return f < 0 ? -1.0f : 1.0f; }
 		template<class T>
 		static void Swap(T& a, T& b) { T temp = a; a = b; b = temp; }
@@ -66,7 +69,7 @@ namespace Viry3D
 	{
 		T max = a[0];
 
-		for (int i = 1; i < a.Size(); i++)
+		for (int i = 1; i < a.Size(); ++i)
 		{
 			if (a[i] > max)
 			{
@@ -82,7 +85,7 @@ namespace Viry3D
 	{
 		T min = a[0];
 
-		for (int i = 1; i < a.Size(); i++)
+		for (int i = 1; i < a.Size(); ++i)
 		{
 			if (a[i] < min)
 			{

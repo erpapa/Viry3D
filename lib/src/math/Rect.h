@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,20 +21,23 @@ namespace Viry3D
 {
 	struct Rect
 	{
-		explicit Rect(float x = 0, float y = 0, float width = 0, float height = 0):
+        static Rect Max(const Rect& a, const Rect& b);
+        static Rect Min(const Rect& a, const Rect& b);
+
+		explicit Rect(float x = 0, float y = 0, float w = 0, float h = 0):
             x(x),
             y(y),
-			width(width),
-			height(height)
+			w(w),
+			h(h)
 		{
 		}
 
-		void Set(float x, float y, float width, float height)
+		void Set(float x, float y, float w, float h)
 		{
 			this->x = x;
 			this->y = y;
-			this->width = width;
-			this->height = height;
+			this->w = w;
+			this->h = h;
 		}
 
 		bool operator ==(const Rect &r) const;
@@ -42,7 +45,7 @@ namespace Viry3D
 
 		float x;
 		float y;
-		float width;
-		float height;
+		float w;
+		float h;
 	};
 }

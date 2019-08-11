@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 #include "Debug.h"
 
-#if VR_WINDOWS
+#if VR_WINDOWS || VR_UWP
 #include <Windows.h>
 #elif VR_IOS
 #import <UIKit/UIKit.h>
@@ -29,24 +29,19 @@
 
 namespace Viry3D
 {
-#if VR_WINDOWS
+#if VR_WINDOWS || VR_UWP
     void Debug::LogString(const String& str, bool end_line)
     {
         if (end_line)
         {
-            OutputDebugString((str + "\n").CString());
+            OutputDebugStringA((str + "\n").CString());
         }
         else
         {
-            OutputDebugString(str.CString());
+            OutputDebugStringA(str.CString());
         }
     }
-#elif VR_IOS
-    void Debug::LogString(const String& str, bool end_line)
-    {
-        NSLog(@"\n%s", str.CString());
-    }
-#elif VR_MAC
+#elif VR_MAC || VR_IOS
     void Debug::LogString(const String& str, bool end_line)
     {
         NSLog(@"\n%s", str.CString());
@@ -55,6 +50,11 @@ namespace Viry3D
     void Debug::LogString(const String& str, bool end_line)
     {
         __android_log_print(ANDROID_LOG_ERROR, "Viry3D", "%s", str.CString());
+    }
+#elif VR_WASM
+    void Debug::LogString(const String& str, bool end_line)
+    {
+        printf("%s\n", str.CString());
     }
 #endif
 }

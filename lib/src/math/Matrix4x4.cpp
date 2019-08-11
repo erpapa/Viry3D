@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -201,11 +201,12 @@ namespace Viry3D
 
 		float scale_y = 1 / tan(Mathf::Deg2Rad * fov / 2);
 		float scale_x = scale_y / aspect;
+		float n_f = 1 / (near - far);
 
 		m.m00 = scale_x;
 		m.m11 = scale_y;
-		m.m22 = (near + far) / (near - far);
-		m.m23 = 2 * near * far / (near - far);
+		m.m22 = (near + far) * n_f;
+		m.m23 = 2 * near * far * n_f;
 		m.m32 = -1.0f;
 		m.m33 = 0;
 
@@ -224,15 +225,8 @@ namespace Viry3D
 		m.m03 = -(right + left) * r_l;
 		m.m11 = 2 * t_b;
 		m.m13 = -(top + bottom) * t_b;
-#if 1
-		//cvv -1~1
 		m.m22 = 2 * n_f;
 		m.m23 = (near + far) * n_f;
-#else
-		//cvv 0~1
-		m.m22 = n_f;
-		m.m23 = near * n_f;
-#endif
 
 		return m;
 	}
@@ -338,13 +332,13 @@ namespace Viry3D
 		int is[4];
 		int js[4];
 
-		for (int i = 0; i < 4; i++)
+		for (int i = 0; i < 4; ++i)
 		{
 			float max = 0.0f;
 
-			for (int j = i; j < 4; j++)
+			for (int j = i; j < 4; ++j)
 			{
-				for (int k = i; k < 4; k++)
+				for (int k = i; k < 4; ++k)
 				{
 					const float f = fabs(mat[j * 4 + k]);
 					if (f > max)
@@ -384,7 +378,7 @@ namespace Viry3D
 			float& key = mat[i * 4 + i];
 			key = 1.0f / key;
 
-			for (int j = 0; j < 4; j++)
+			for (int j = 0; j < 4; ++j)
 			{
 				if (j != i)
 				{
@@ -392,11 +386,11 @@ namespace Viry3D
 				}
 			}
 
-			for (int j = 0; j < 4; j++)
+			for (int j = 0; j < 4; ++j)
 			{
 				if (j != i)
 				{
-					for (int k = 0; k < 4; k++)
+					for (int k = 0; k < 4; ++k)
 					{
 						if (k != i)
 						{
@@ -406,7 +400,7 @@ namespace Viry3D
 				}
 			}
 
-			for (int j = 0; j < 4; j++)
+			for (int j = 0; j < 4; ++j)
 			{
 				if (j != i)
 				{
@@ -415,7 +409,7 @@ namespace Viry3D
 			}
 		}
 
-		for (int i = 3; i >= 0; i--)
+		for (int i = 3; i >= 0; --i)
 		{
 			if (js[i] != i)
 			{

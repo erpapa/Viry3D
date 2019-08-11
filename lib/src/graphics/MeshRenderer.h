@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -18,26 +18,22 @@
 #pragma once
 
 #include "Renderer.h"
+#include "Mesh.h"
 
 namespace Viry3D
 {
     class Mesh;
-
+    
     class MeshRenderer : public Renderer
     {
     public:
         MeshRenderer();
         virtual ~MeshRenderer();
-        virtual Ref<BufferObject> GetVertexBuffer() const;
-        virtual Ref<BufferObject> GetIndexBuffer() const;
-        virtual Ref<BufferObject> GetDrawBuffer() const { return m_draw_buffer; }
         const Ref<Mesh>& GetMesh() const { return m_mesh; }
-        int GetSubmesh() const { return m_submesh; }
-        void SetMesh(const Ref<Mesh>& mesh, int submesh = 0);
-
-    private:
+		virtual void SetMesh(const Ref<Mesh>& mesh);
+        virtual Vector<filament::backend::RenderPrimitiveHandle> GetPrimitives();
+        
+	private:
         Ref<Mesh> m_mesh;
-        int m_submesh;
-        Ref<BufferObject> m_draw_buffer;
     };
 }

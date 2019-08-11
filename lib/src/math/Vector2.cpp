@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -22,6 +22,25 @@
 
 namespace Viry3D
 {
+    const Vector2& Vector2::One()
+    {
+        static const Vector2 s_one(1, 1);
+        return s_one;
+    }
+
+    const Vector2& Vector2::Zero()
+    {
+        static const Vector2 s_zero(0, 0);
+        return s_zero;
+    }
+
+    Vector2 Vector2::Lerp(const Vector2& from, const Vector2& to, float t, bool clamp_01)
+    {
+        return Vector2(
+            Mathf::Lerp(from.x, to.x, t, clamp_01),
+            Mathf::Lerp(from.y, to.y, t, clamp_01));
+    }
+
 	Vector2::Vector2(const Vector3& v3):
 		x(v3.x),
 		y(v3.y)

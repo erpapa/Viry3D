@@ -1,27 +1,25 @@
 /*
- * Viry3D
- * Copyright 2014-2018 by Stack - stackos@qq.com
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+* Viry3D
+* Copyright 2014-2019 by Stack - stackos@qq.com
+*
+* Licensed under the Apache License, Version 2.0 (the "License");
+* you may not use this file except in compliance with the License.
+* You may obtain a copy of the License at
+*
+*     http://www.apache.org/licenses/LICENSE-2.0
+*
+* Unless required by applicable law or agreed to in writing, software
+* distributed under the License is distributed on an "AS IS" BASIS,
+* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+* See the License for the specific language governing permissions and
+* limitations under the License.
+*/
 
 #import "ViewController.h"
-#import "VkView.h"
-#include "graphics/Display.h"
-#include "container/List.h"
-#include "thread/ThreadPool.h"
-#include "App.h"
+#include "Engine.h"
 #include "Input.h"
+#include "container/List.h"
+#include <QuartzCore/QuartzCore.h>
 
 using namespace Viry3D;
 
@@ -40,64 +38,113 @@ struct MouseEvent
 
 static bool g_mouse_down = false;
 
+@interface FrameHandler : NSObject
+
+- (void)setViewController:(ViewController*)vc;
+
+@end
+
+@implementation FrameHandler {
+    ViewController* m_vc;
+}
+
+- (void)setViewController:(ViewController*)vc {
+    m_vc = vc;
+}
+
+- (void)drawFrame {
+    [m_vc drawFrame];
+}
+
+@end
+
 @implementation ViewController {
+    NSWindow* m_window;
+    Engine* m_engine;
     NSTimer* m_timer;
-    Display* m_display;
-    App* m_app;
+    FrameHandler* m_frame_handler;
     int m_target_width;
     int m_target_height;
 }
 
+- (void)setWindow:(NSWindow*)window {
+    m_window = window;
+}
+
 - (void)loadView {
-    CGSize size = [self.window contentRectForFrameRect:self.window.contentLayoutRect].size;
-    float scale = self.window.backingScaleFactor;
+    CGSize size = [m_window contentRectForFrameRect:m_window.contentLayoutRect].size;
+    float scale = m_window.backingScaleFactor;
     int window_width = size.width * scale;
     int window_height = size.height * scale;
     
-    VkView* view = [[VkView alloc] initWithFrame:NSMakeRect(0, 0, size.width, size.height)];
-    view.contentsScale = scale;
-    view.wantsLayer = YES;
+    NSView* view = [[NSView alloc] initWithFrame:NSMakeRect(0, 0, size.width, size.height)];
     self.view = view;
     
-    String name = "viry3d-vk-demo";
-    m_display = new Display(name, (__bridge void*) self.view, window_width, window_height);
+    void* window = nullptr;
+#if VR_USE_METAL
+    [view setWantsLayer:YES];
+    CAMetalLayer* layer = [CAMetalLayer layer];
+    layer.bounds = view.bounds;
+    layer.drawableSize = CGSizeMake(window_width, window_height);
+    layer.opaque = YES;
+    [view setLayer:layer];
+    window = (__bridge void*) layer;
+#else
+    view.wantsBestResolutionOpenGLSurface = YES;
+    window = (__bridge void*) view;
+#endif
     
-    m_app = new App();
-    m_app->SetName(name);
-    m_app->Init();
-    
-    m_timer = [NSTimer timerWithTimeInterval:1.0f / 60 target:self selector:@selector(drawFrame) userInfo:nil repeats:YES];
+    m_engine = Engine::Create(window, window_width, window_height);
+
+    m_frame_handler = [FrameHandler new];
+    [m_frame_handler setViewController:self];
+    m_timer = [NSTimer timerWithTimeInterval:1.0f / 60 target:m_frame_handler selector:@selector(drawFrame) userInfo:nil repeats:YES];
     [[NSRunLoop currentRunLoop] addTimer:m_timer forMode:NSDefaultRunLoopMode];
     
     m_target_width = window_width;
     m_target_height = window_height;
 }
 
-- (void)viewWillDisappear {
-    [super viewWillDisappear];
-    
-    [m_timer invalidate];
-}
-
 - (void)dealloc {
-    delete m_app;
-    delete m_display;
+    [m_timer invalidate];
+    m_timer = nil;
+    [m_frame_handler release];
+    m_frame_handler = nil;
+    Engine::Destroy(&m_engine);
+    
+#ifndef NDEBUG
+    int alloc_size = Memory::GetAllocSize();
+    int new_size = Memory::GetNewSize();
+    assert(alloc_size == 0);
+    assert(new_size == 0);
+#endif
+    
+    [super dealloc];
 }
 
 - (void)onResize:(int)width :(int)height {
     m_target_width = width;
     m_target_height = height;
+    
+#if VR_USE_METAL
+    CAMetalLayer* layer = (CAMetalLayer*) self.view.layer;
+    layer.drawableSize = CGSizeMake(m_target_width, m_target_height);
+#endif
 }
 
 - (void)drawFrame {
-    if (m_target_width != m_display->GetWidth() || m_target_height != m_display->GetHeight()) {
-        m_display->OnResize(m_target_width, m_target_height);
+    if (m_target_width != m_engine->GetWidth() || m_target_height != m_engine->GetHeight()) {
+        void* window = nullptr;
+#if VR_USE_METAL
+        window = (__bridge void*) self.view.layer;
+#else
+        window = (__bridge void*) self.view;
+#endif
+        
+        m_engine->OnResize(window, m_target_width, m_target_height);
     }
     
-    m_app->OnFrameBegin();
-    m_app->Update();
-    m_display->OnDraw();
-    m_app->OnFrameEnd();
+    m_engine->Execute();
 }
 
 - (void)onMouseDown:(const MouseEvent*)e {
@@ -188,7 +235,7 @@ static bool g_mouse_down = false;
 }
 
 - (void)mouseDown:(NSEvent*)event {
-    float scale = self.window.backingScaleFactor;
+    float scale = m_window.backingScaleFactor;
     float x = [event locationInWindow].x * scale;
     float y = [event locationInWindow].y * scale;
     
@@ -200,7 +247,7 @@ static bool g_mouse_down = false;
 }
 
 - (void)mouseUp:(NSEvent*)event {
-    float scale = self.window.backingScaleFactor;
+    float scale = m_window.backingScaleFactor;
     float x = [event locationInWindow].x * scale;
     float y = [event locationInWindow].y * scale;
     
@@ -212,7 +259,7 @@ static bool g_mouse_down = false;
 }
 
 - (void)mouseMoved:(NSEvent*)event {
-    float scale = self.window.backingScaleFactor;
+    float scale = m_window.backingScaleFactor;
     float x = [event locationInWindow].x * scale;
     float y = [event locationInWindow].y * scale;
     
@@ -224,7 +271,7 @@ static bool g_mouse_down = false;
 }
 
 - (void)mouseDragged:(NSEvent*)event {
-    float scale = self.window.backingScaleFactor;
+    float scale = m_window.backingScaleFactor;
     float x = [event locationInWindow].x * scale;
     float y = [event locationInWindow].y * scale;
     

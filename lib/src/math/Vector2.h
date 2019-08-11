@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,16 +25,22 @@ namespace Viry3D
 
 	struct Vector2
 	{
+		static const Vector2& One();
+		static const Vector2& Zero();
+        static Vector2 Lerp(const Vector2& from, const Vector2& to, float t, bool clamp_01 = true);
+
 		explicit Vector2(float x = 0, float y = 0): x(x), y(y) { }
 		Vector2(const Vector3& v3);
-		Vector2 operator *(float value) const;
 		Vector2 operator +(const Vector2& value) const;
-		Vector2 operator -(const Vector2& value) const;
-        Vector2& operator *=(float value);
         Vector2& operator +=(const Vector2& value);
+		Vector2 operator -(const Vector2& value) const;
         Vector2& operator -=(const Vector2& value);
+        float operator *(const Vector2& v) const { return x * v.y - y * v.x; }
+        Vector2 operator *(float value) const;
+        Vector2& operator *=(float value);
 		bool operator ==(const Vector2& value) const;
 		bool operator !=(const Vector2& value) const;
+        float Dot(const Vector2& v) const { return x * v.x + y * v.y; }
 		String ToString() const;
 		float Magnitude() const;
 		float SqrMagnitude() const;

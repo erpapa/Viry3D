@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,48 +17,51 @@
 
 #pragma once
 
-#include "Node.h"
-#include "Display.h"
-#include "memory/Ref.h"
+#include "Component.h"
+#include "Material.h"
 #include "container/List.h"
-#include "math/Matrix4x4.h"
-#include "string/String.h"
+#include "container/Vector.h"
+#include "math/Vector4.h"
+#include "private/backend/DriverApi.h"
 
 namespace Viry3D
 {
-    class Material;
-    class Camera;
-    class BufferObject;
-
-    class Renderer : public Node
+    class Renderer : public Component
     {
     public:
+        static const List<Renderer*>& GetRenderers() { return m_renderers; }
+		static void PrepareAll();
         Renderer();
         virtual ~Renderer();
-        virtual Ref<BufferObject> GetVertexBuffer() const = 0;
-        virtual Ref<BufferObject> GetIndexBuffer() const = 0;
-        virtual Ref<BufferObject> GetDrawBuffer() const = 0;
-        virtual void Update();
-        virtual void OnFrameEnd() { }
-        virtual void OnResize(int width, int height) { }
-        const Ref<Material>& GetMaterial() const { return m_material; }
-        const Ref<Material>& GetInstanceMaterial() const { return m_instance_material; }
+        Ref<Material> GetMaterial() const;
         void SetMaterial(const Ref<Material>& material);
-        void OnAddToCamera(Camera* camera);
-        void OnRemoveFromCamera(Camera* camera);
-        Camera* GetCamera() const { return m_camera; }
-        void MarkRendererOrderDirty();
-        void MarkInstanceCmdDirty();
+        const Vector<Ref<Material>>& GetMaterials() const { return m_materials; }
+        void SetMaterials(const Vector<Ref<Material>>& materials);
+		bool IsCastShadow() const { return m_cast_shadow; }
+		void EnableCastShadow(bool enable);
+		bool IsRecieveShadow() const { return m_recieve_shadow; }
+		void EnableRecieveShadow(bool enable);
+        int GetLightmapIndex() const { return m_lightmap_index; }
+        void SetLightmapIndex(int index);
+        const Vector4& GetLightmapScaleOffset() const { return m_lightmap_scale_offset; }
+        void SetLightmapScaleOffset(const Vector4& vec);
+        const filament::backend::UniformBufferHandle& GetTransformUniformBuffer() const { return m_transform_uniform_buffer; }
+        virtual Vector<filament::backend::RenderPrimitiveHandle> GetPrimitives();
 
-    protected:
-        virtual void OnMatrixDirty();
-        void SetInstanceMatrix(const String& name, const Matrix4x4& mat);
-        void SetInstanceVectorArray(const String& name, const Vector<Vector4>& array);
+	protected:
+		virtual void Prepare();
+		virtual void OnResize(int width, int height) { }
 
-    private:
-        Ref<Material> m_material;
-        Ref<Material> m_instance_material;
-        Camera* m_camera;
-        bool m_model_matrix_dirty;
+	private:
+		friend class Camera;
+
+	private:
+        static List<Renderer*> m_renderers;
+        Vector<Ref<Material>> m_materials;
+		bool m_cast_shadow;
+		bool m_recieve_shadow;
+        Vector4 m_lightmap_scale_offset;
+        int m_lightmap_index;
+		filament::backend::UniformBufferHandle m_transform_uniform_buffer;
     };
 }

@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,15 +17,29 @@
 
 #pragma once
 
-#include "string/String.h"
+#include "Object.h"
 
 namespace Viry3D
 {
-	class Image
+    enum class ImageFormat
+    {
+        None = 0,
+        R8,
+        R8G8B8,
+        R8G8B8A8,
+    };
+
+	class Image : public Object
 	{
 	public:
-		static ByteBuffer LoadJPEG(const ByteBuffer& jpeg, int& width, int& height, int& bpp);
-		static ByteBuffer LoadPNG(const ByteBuffer& png, int& width, int& height, int& bpp);
-		static void EncodeToPNG(const String& file, const ByteBuffer& colors, int width, int height, int bpp);
+        static Ref<Image> LoadFromFile(const String& path);
+		static Ref<Image> LoadJPEG(const ByteBuffer& jpeg);
+		static Ref<Image> LoadPNG(const ByteBuffer& png);
+		void EncodeToPNG(const String& file);
+
+        int width = 0;
+        int height = 0;
+        ImageFormat format = ImageFormat::None;
+        ByteBuffer data;
 	};
 }

@@ -19,10 +19,17 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\src\2d\Navigation2D.h" />
+    <ClInclude Include="..\..\src\2d\NavigationPolygon.h" />
+    <ClInclude Include="..\..\src\Action.h" />
     <ClInclude Include="..\..\src\android\jni.h" />
     <ClInclude Include="..\..\src\animation\Animation.h" />
     <ClInclude Include="..\..\src\animation\AnimationCurve.h" />
     <ClInclude Include="..\..\src\Application.h" />
+    <ClInclude Include="..\..\src\audio\AudioClip.h" />
+    <ClInclude Include="..\..\src\audio\AudioListener.h" />
+    <ClInclude Include="..\..\src\audio\AudioManager.h" />
+    <ClInclude Include="..\..\src\audio\AudioSource.h" />
     <ClInclude Include="..\..\src\container\Array.h" />
     <ClInclude Include="..\..\src\container\FastList.h" />
     <ClInclude Include="..\..\src\container\List.h" />
@@ -30,10 +37,13 @@
     <ClInclude Include="..\..\src\container\Vector.h" />
     <ClInclude Include="..\..\src\crypto\md5\md5.h" />
     <ClInclude Include="..\..\src\Debug.h" />
+    <ClInclude Include="..\..\src\gles\gles_include.h" />
     <ClInclude Include="..\..\src\graphics\BufferObject.h" />
     <ClInclude Include="..\..\src\graphics\Camera.h" />
     <ClInclude Include="..\..\src\graphics\CameraClearFlags.h" />
     <ClInclude Include="..\..\src\graphics\Color.h" />
+    <ClInclude Include="..\..\src\graphics\Computer.h" />
+    <ClInclude Include="..\..\src\graphics\CubeMapToSphericalPolynomialTools.h" />
     <ClInclude Include="..\..\src\graphics\Display.h" />
     <ClInclude Include="..\..\src\graphics\Image.h" />
     <ClInclude Include="..\..\src\graphics\Light.h" />
@@ -52,15 +62,18 @@
     <ClInclude Include="..\..\src\io\File.h" />
     <ClInclude Include="..\..\src\io\MemoryStream.h" />
     <ClInclude Include="..\..\src\io\Stream.h" />
-    <ClInclude Include="..\..\src\json\autolink.h" />
-    <ClInclude Include="..\..\src\json\config.h" />
-    <ClInclude Include="..\..\src\json\features.h" />
-    <ClInclude Include="..\..\src\json\forwards.h" />
-    <ClInclude Include="..\..\src\json\json.h" />
-    <ClInclude Include="..\..\src\json\json_batchallocator.h" />
-    <ClInclude Include="..\..\src\json\reader.h" />
-    <ClInclude Include="..\..\src\json\value.h" />
-    <ClInclude Include="..\..\src\json\writer.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\allocator.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\assertions.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\autolink.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\config.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\features.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\forwards.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\json.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\reader.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\value.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\version.h" />
+    <ClInclude Include="..\..\src\jsoncpp\include\json\writer.h" />
+    <ClInclude Include="..\..\src\jsoncpp\src\lib_json\json_tool.h" />
     <ClInclude Include="..\..\src\KeyCode.h" />
     <ClInclude Include="..\..\src\lua\lapi.h" />
     <ClInclude Include="..\..\src\lua\lauxlib.h" />
@@ -109,6 +122,7 @@
     <ClInclude Include="..\..\src\memory\Memory.h" />
     <ClInclude Include="..\..\src\memory\Ref.h" />
     <ClInclude Include="..\..\src\Node.h" />
+    <ClInclude Include="..\..\src\Object.h" />
     <ClInclude Include="..\..\src\openal\win\config.h" />
     <ClInclude Include="..\..\src\physics\bullet\src\BulletCollision\BroadphaseCollision\btAxisSweep3.h" />
     <ClInclude Include="..\..\src\physics\bullet\src\BulletCollision\BroadphaseCollision\btBroadphaseInterface.h" />
@@ -275,7 +289,12 @@
     <ClInclude Include="..\..\src\ui\CanvasRenderer.h" />
     <ClInclude Include="..\..\src\ui\Font.h" />
     <ClInclude Include="..\..\src\ui\Label.h" />
+    <ClInclude Include="..\..\src\ui\LineView.h" />
+    <ClInclude Include="..\..\src\ui\ScrollView.h" />
+    <ClInclude Include="..\..\src\ui\SelectButton.h" />
+    <ClInclude Include="..\..\src\ui\Slider.h" />
     <ClInclude Include="..\..\src\ui\Sprite.h" />
+    <ClInclude Include="..\..\src\ui\SwitchButton.h" />
     <ClInclude Include="..\..\src\ui\View.h" />
     <ClInclude Include="..\..\src\vulkan\spirv_cross\GLSL.std.450.h" />
     <ClInclude Include="..\..\src\vulkan\spirv_cross\spirv.hpp" />
@@ -292,9 +311,15 @@
     <ClInclude Include="..\..\src\xml\tinyxml2.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\2d\Navigation2D.cpp" />
+    <ClCompile Include="..\..\src\2d\NavigationPolygon.cpp" />
     <ClCompile Include="..\..\src\animation\Animation.cpp" />
     <ClCompile Include="..\..\src\animation\AnimationCurve.cpp" />
     <ClCompile Include="..\..\src\Application.cpp" />
+    <ClCompile Include="..\..\src\audio\AudioClip.cpp" />
+    <ClCompile Include="..\..\src\audio\AudioListener.cpp" />
+    <ClCompile Include="..\..\src\audio\AudioManager.cpp" />
+    <ClCompile Include="..\..\src\audio\AudioSource.cpp" />
     <ClCompile Include="..\..\src\crypto\md5\md5.c" />
     <ClCompile Include="..\..\src\Debug.cpp" />
     <ClCompile Include="..\..\src\freetype\src\autofit\autofit.c" />
@@ -336,8 +361,11 @@
     <ClCompile Include="..\..\src\freetype\src\type1\type1.c" />
     <ClCompile Include="..\..\src\freetype\src\type42\type42.c" />
     <ClCompile Include="..\..\src\freetype\src\winfonts\winfnt.c" />
+    <ClCompile Include="..\..\src\gles\glew\src\glew.c" />
     <ClCompile Include="..\..\src\graphics\Camera.cpp" />
     <ClCompile Include="..\..\src\graphics\Color.cpp" />
+    <ClCompile Include="..\..\src\graphics\Computer.cpp" />
+    <ClCompile Include="..\..\src\graphics\CubeMapToSphericalPolynomialTools.cpp" />
     <ClCompile Include="..\..\src\graphics\Display.cpp" />
     <ClCompile Include="..\..\src\graphics\Image.cpp" />
     <ClCompile Include="..\..\src\graphics\Light.cpp" />
@@ -400,9 +428,9 @@
     <ClCompile Include="..\..\src\jpeg\jquant1.c" />
     <ClCompile Include="..\..\src\jpeg\jquant2.c" />
     <ClCompile Include="..\..\src\jpeg\jutils.c" />
-    <ClCompile Include="..\..\src\json\json_reader.cpp" />
-    <ClCompile Include="..\..\src\json\json_value.cpp" />
-    <ClCompile Include="..\..\src\json\json_writer.cpp" />
+    <ClCompile Include="..\..\src\jsoncpp\src\lib_json\json_reader.cpp" />
+    <ClCompile Include="..\..\src\jsoncpp\src\lib_json\json_value.cpp" />
+    <ClCompile Include="..\..\src\jsoncpp\src\lib_json\json_writer.cpp" />
     <ClCompile Include="..\..\src\lua\lapi.c" />
     <ClCompile Include="..\..\src\lua\lauxlib.c" />
     <ClCompile Include="..\..\src\lua\lbaselib.c" />
@@ -529,7 +557,7 @@
     <ClCompile Include="..\..\src\openal\Alc\backends\loopback.c" />
     <ClCompile Include="..\..\src\openal\Alc\backends\null.c" />
     <ClCompile Include="..\..\src\openal\Alc\backends\thread_msg_queue_cpp11.cpp" />
-    <ClCompile Include="..\..\src\openal\Alc\backends\winmm.c" />
+    <ClCompile Include="..\..\src\openal\Alc\backends\xaudio2.cpp" />
     <ClCompile Include="..\..\src\openal\Alc\bs2b.c" />
     <ClCompile Include="..\..\src\openal\Alc\helpers.c" />
     <ClCompile Include="..\..\src\openal\Alc\hrtf.c" />
@@ -675,10 +703,16 @@
     <ClCompile Include="..\..\src\ui\CanvasRenderer.cpp" />
     <ClCompile Include="..\..\src\ui\Font.cpp" />
     <ClCompile Include="..\..\src\ui\Label.cpp" />
+    <ClCompile Include="..\..\src\ui\LineView.cpp" />
+    <ClCompile Include="..\..\src\ui\ScrollView.cpp" />
+    <ClCompile Include="..\..\src\ui\SelectButton.cpp" />
+    <ClCompile Include="..\..\src\ui\Slider.cpp" />
     <ClCompile Include="..\..\src\ui\Sprite.cpp" />
+    <ClCompile Include="..\..\src\ui\SwitchButton.cpp" />
     <ClCompile Include="..\..\src\ui\View.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\GenericCodeGen\CodeGen.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\GenericCodeGen\Link.cpp" />
+    <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\attribute.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\Constant.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\glslang_tab.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\InfoSink.cpp" />
@@ -686,17 +720,17 @@
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\Intermediate.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\intermOut.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\IntermTraverse.cpp" />
+    <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\iomapper.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\limits.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\linkValidate.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\parseConst.cpp" />
+    <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\ParseContextBase.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\ParseHelper.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\PoolAlloc.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\preprocessor\Pp.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\preprocessor\PpAtom.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\preprocessor\PpContext.cpp" />
-    <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\preprocessor\PpMemory.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\preprocessor\PpScanner.cpp" />
-    <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\preprocessor\PpSymbols.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\preprocessor\PpTokens.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\propagateNoContraction.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\reflection.cpp" />
@@ -706,12 +740,6 @@
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\SymbolTable.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\MachineIndependent\Versions.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\glslang\OSDependent\Windows\ossource.cpp" />
-    <ClCompile Include="..\..\src\vulkan\glslang\hlsl\hlslGrammar.cpp" />
-    <ClCompile Include="..\..\src\vulkan\glslang\hlsl\hlslOpMap.cpp" />
-    <ClCompile Include="..\..\src\vulkan\glslang\hlsl\hlslParseables.cpp" />
-    <ClCompile Include="..\..\src\vulkan\glslang\hlsl\hlslParseHelper.cpp" />
-    <ClCompile Include="..\..\src\vulkan\glslang\hlsl\hlslScanContext.cpp" />
-    <ClCompile Include="..\..\src\vulkan\glslang\hlsl\hlslTokenStream.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\OGLCompilersDLL\InitializeDll.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\SPIRV\disassemble.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\SPIRV\doc.cpp" />
@@ -719,6 +747,7 @@
     <ClCompile Include="..\..\src\vulkan\glslang\SPIRV\InReadableOrder.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\SPIRV\Logger.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\SPIRV\SpvBuilder.cpp" />
+    <ClCompile Include="..\..\src\vulkan\glslang\SPIRV\SpvPostProcess.cpp" />
     <ClCompile Include="..\..\src\vulkan\glslang\SPIRV\SPVRemapper.cpp" />
     <ClCompile Include="..\..\src\vulkan\spirv_cross\spirv_cfg.cpp" />
     <ClCompile Include="..\..\src\vulkan\spirv_cross\spirv_cpp.cpp" />
@@ -748,9 +777,7 @@
     <ClCompile Include="..\..\src\zlib\zutil.c" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\src\json\json_internalarray.inl" />
-    <None Include="..\..\src\json\json_internalmap.inl" />
-    <None Include="..\..\src\json\json_valueiterator.inl" />
+    <None Include="..\..\src\jsoncpp\src\lib_json\json_valueiterator.inl" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{B1A3401A-A9FA-429D-8021-CF57F3C7F89B}</ProjectGuid>
@@ -804,19 +831,19 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <IncludePath>../../src;../../src/zlib;../../src/freetype/include;../../src/openal/include;../../src/mp3/mad;../../src/openal/win;../../src/openal/OpenAL32/Include;../../src/ffmpeg/include;../../src/physics/bullet/src;../../src/gles/glew/include;../../src/vulkan/MoltenVK/include;../../src/vulkan/vulkan_sdk/include;../../src/lua;$(IncludePath)</IncludePath>
+    <IncludePath>../../src;../../src/zlib;../../src/freetype/include;../../src/openal/include;../../src/mp3/mad;../../src/openal/win;../../src/openal/OpenAL32/Include;../../src/physics/bullet/src;../../src/gles/glew/include;../../src/vulkan/MoltenVK/include;../../src/lua;../../src/jsoncpp/include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)..\..\..\app\bin\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <IncludePath>../../src;../../src/zlib;../../src/freetype/include;../../src/openal/include;../../src/mp3/mad;../../src/openal/win;../../src/openal/OpenAL32/Include;../../src/ffmpeg/include;../../src/physics/bullet/src;../../src/gles/glew/include;../../src/vulkan/MoltenVK/include;../../src/vulkan/vulkan_sdk/include;../../src/lua;$(IncludePath)</IncludePath>
+    <IncludePath>../../src;../../src/zlib;../../src/freetype/include;../../src/openal/include;../../src/mp3/mad;../../src/openal/win;../../src/openal/OpenAL32/Include;../../src/physics/bullet/src;../../src/gles/glew/include;../../src/vulkan/MoltenVK/include;../../src/lua;../../src/jsoncpp/include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)..\..\..\app\bin\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>../../src;../../src/zlib;../../src/freetype/include;../../src/openal/include;../../src/mp3/mad;../../src/openal/win;../../src/openal/OpenAL32/Include;../../src/ffmpeg/include;../../src/physics/bullet/src;../../src/gles/glew/include;../../src/vulkan/MoltenVK/include;../../src/vulkan/vulkan_sdk/include;../../src/lua;$(IncludePath)</IncludePath>
+    <IncludePath>../../src;../../src/zlib;../../src/freetype/include;../../src/openal/include;../../src/mp3/mad;../../src/openal/win;../../src/openal/OpenAL32/Include;../../src/physics/bullet/src;../../src/gles/glew/include;../../src/vulkan/MoltenVK/include;../../src/lua;../../src/jsoncpp/include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)..\..\..\app\bin\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <IncludePath>../../src;../../src/zlib;../../src/freetype/include;../../src/openal/include;../../src/mp3/mad;../../src/openal/win;../../src/openal/OpenAL32/Include;../../src/ffmpeg/include;../../src/physics/bullet/src;../../src/gles/glew/include;../../src/vulkan/MoltenVK/include;../../src/vulkan/vulkan_sdk/include;../../src/lua;$(IncludePath)</IncludePath>
+    <IncludePath>../../src;../../src/zlib;../../src/freetype/include;../../src/openal/include;../../src/mp3/mad;../../src/openal/win;../../src/openal/OpenAL32/Include;../../src/physics/bullet/src;../../src/gles/glew/include;../../src/vulkan/MoltenVK/include;../../src/lua;../../src/jsoncpp/include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)..\..\..\app\bin\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
@@ -825,7 +852,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>VR_VULKAN=1;VR_GLES=0;VR_WINDOWS;VK_USE_PLATFORM_WIN32_KHR;FT2_BUILD_LIBRARY;FPM_DEFAULT;AL_LIBTYPE_STATIC;_CRT_SECURE_NO_WARNINGS;_CRT_RAND_S;GLEW_STATIC;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>VR_WINDOWS;VR_VULKAN=0;VR_GLES=1;VK_USE_PLATFORM_WIN32_KHR;FT2_BUILD_LIBRARY;FPM_DEFAULT;SIZEOF_INT=4;AL_LIBTYPE_STATIC;_CRT_SECURE_NO_WARNINGS;_CRT_RAND_S;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES;GLEW_STATIC;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -838,7 +865,7 @@
       </PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>VR_VULKAN=1;VR_GLES=0;VR_WINDOWS;VK_USE_PLATFORM_WIN32_KHR;FT2_BUILD_LIBRARY;FPM_DEFAULT;AL_LIBTYPE_STATIC;_CRT_SECURE_NO_WARNINGS;_CRT_RAND_S;GLEW_STATIC;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>VR_WINDOWS;VR_VULKAN=0;VR_GLES=1;VK_USE_PLATFORM_WIN32_KHR;FT2_BUILD_LIBRARY;FPM_DEFAULT;SIZEOF_INT=4;AL_LIBTYPE_STATIC;_CRT_SECURE_NO_WARNINGS;_CRT_RAND_S;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES;GLEW_STATIC;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>false</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -853,7 +880,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>VR_VULKAN=1;VR_GLES=0;VR_WINDOWS;VK_USE_PLATFORM_WIN32_KHR;FT2_BUILD_LIBRARY;FPM_DEFAULT;AL_LIBTYPE_STATIC;_CRT_SECURE_NO_WARNINGS;_CRT_RAND_S;GLEW_STATIC;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>VR_WINDOWS;VR_VULKAN=0;VR_GLES=1;VK_USE_PLATFORM_WIN32_KHR;FT2_BUILD_LIBRARY;FPM_DEFAULT;SIZEOF_INT=4;AL_LIBTYPE_STATIC;_CRT_SECURE_NO_WARNINGS;_CRT_RAND_S;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES;GLEW_STATIC;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
@@ -871,7 +898,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>VR_VULKAN=1;VR_GLES=0;VR_WINDOWS;VK_USE_PLATFORM_WIN32_KHR;FT2_BUILD_LIBRARY;FPM_DEFAULT;AL_LIBTYPE_STATIC;_CRT_SECURE_NO_WARNINGS;_CRT_RAND_S;GLEW_STATIC;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>VR_WINDOWS;VR_VULKAN=0;VR_GLES=1;VK_USE_PLATFORM_WIN32_KHR;FT2_BUILD_LIBRARY;FPM_DEFAULT;SIZEOF_INT=4;AL_LIBTYPE_STATIC;_CRT_SECURE_NO_WARNINGS;_CRT_RAND_S;_CRT_SECURE_CPP_OVERLOAD_STANDARD_NAMES;GLEW_STATIC;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>

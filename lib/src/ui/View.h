@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,29 +17,46 @@
 
 #pragma once
 
+#include "Object.h"
 #include "container/Vector.h"
 #include "graphics/Color.h"
-#include "graphics/VertexAttribute.h"
+#include "graphics/Mesh.h"
 #include "math/Vector2.h"
 #include "math/Vector2i.h"
+#include "math/Vector3.h"
+#include "math/Vector4.h"
 #include "math/Quaternion.h"
 #include "math/Rect.h"
+#include "math/Recti.h"
 #include "math/Matrix4x4.h"
 #include <functional>
+
+#define VIEW_SIZE_FILL_PARENT -1
 
 namespace Viry3D
 {
 	class CanvasRenderer;
 	class Texture;
+    class Image;
     class View;
 
     struct ViewMesh
     {
-        Vector<Vertex> vertices;
+        Vector<Mesh::Vertex> vertices;
         Vector<unsigned short> indices;
         Ref<Texture> texture;
+        Ref<Image> image;
         View* view = nullptr;
         bool base_view = false;
+        Rect clip_rect = Rect(0, 0, 1, 1);
+
+        bool HasTextureOrImage() const
+        {
+            return texture || image;
+        }
+
+        int GetTextureOrImageWidth() const;
+        int GetTextureOrImageHeight() const;
     };
 
     struct ViewAlignment
@@ -55,19 +72,26 @@ namespace Viry3D
         };
 	};
 
-	class View
+	class View : public Object
 	{
 	public:
+        typedef std::function<bool(const Vector2i& pos)> InputAction;
+
 		View();
 		virtual ~View();
+        virtual void Update();
         virtual void UpdateLayout();
+        virtual void OnResize(int width, int height);
 		void OnAddToCanvas(CanvasRenderer* canvas);
 		void OnRemoveFromCanvas(CanvasRenderer* canvas);
         CanvasRenderer* GetCanvas() const;
         void AddSubview(const Ref<View>& view);
         void RemoveSubview(const Ref<View>& view);
+        void ClearSubviews();
         int GetSubviewCount() const { return m_subviews.Size(); }
         const Ref<View>& GetSubview(int index) const { return m_subviews[index]; }
+        const Vector<Ref<View>>& GetSubviews() const { return m_subviews; }
+        View* GetParentView() const { return m_parent_view; }
 		const Color& GetColor() const { return m_color; }
 		void SetColor(const Color& color);
 		int GetAlignment() const { return m_alignment; }
@@ -77,33 +101,39 @@ namespace Viry3D
         // left top is (0.0, 0.0), right bottom is (1.0, 1.0)
 		void SetPivot(const Vector2& pivot);
 		const Vector2i& GetSize() const { return m_size; }
-		void SetSize(const Vector2i& size);
+        virtual void SetSize(const Vector2i& size);
+        Vector2i GetCalculatedSize();
 		const Vector2i& GetOffset() const { return m_offset; }
         // offset y direction is down
 		void SetOffset(const Vector2i& offset);
+        // left, top, right, bottom
+        const Vector4& GetMargin() const { return m_margin; }
+        void SetMargin(const Vector4& margin);
         const Quaternion& GetLocalRotation() const { return m_local_rotation; }
-        void SetLocalRotation(const Quaternion& rotation);
+        void SetLocalRotation(const Quaternion& rot);
         const Vector2& GetLocalScale() const { return m_local_scale; }
         void SetLocalScale(const Vector2& scale);
-        const Rect& GetRect() const { return m_rect; }
-        const Quaternion& GetRotation() const { return m_rotation; }
-        const Vector2& GetScale() const { return m_scale; }
-        void FillMeshes(Vector<ViewMesh>& mesh);
-        void SetOnTouchDownInside(std::function<bool()> func) { m_on_touch_down_inside = func; }
-        void SetOnTouchMoveInside(std::function<bool()> func) { m_on_touch_move_inside = func; }
-        void SetOnTouchUpInside(std::function<bool()> func) { m_on_touch_up_inside = func; }
-        void SetOnTouchUpOutside(std::function<bool()> func) { m_on_touch_up_outside = func; }
-        void SetOnTouchDrag(std::function<bool()> func) { m_on_touch_drag = func; }
-        bool OnTouchDownInside() const;
-        bool OnTouchMoveInside() const;
-        bool OnTouchUpInside() const;
-        bool OnTouchUpOutside() const;
-        bool OnTouchDrag() const;
+        const Recti& GetRect() const { return m_rect; }
+        const Matrix4x4& GetVertexMatrix() { return m_vertex_matrix; }
+        bool IsClipRect() const { return m_clip_rect; }
+        void EnableClipRect(bool enable);
+        Rect GetClipRect() const;
+        void FillMeshes(Vector<ViewMesh>& mesh, const Rect& clip_rect);
+        void SetOnTouchDownInside(InputAction func) { m_on_touch_down_inside = func; }
+        void SetOnTouchMoveInside(InputAction func) { m_on_touch_move_inside = func; }
+        void SetOnTouchUpInside(InputAction func) { m_on_touch_up_inside = func; }
+        void SetOnTouchUpOutside(InputAction func) { m_on_touch_up_outside = func; }
+        void SetOnTouchDrag(InputAction func) { m_on_touch_drag = func; }
+        bool OnTouchDownInside(const Vector2i& pos) const;
+        bool OnTouchMoveInside(const Vector2i& pos) const;
+        bool OnTouchUpInside(const Vector2i& pos) const;
+        bool OnTouchUpOutside(const Vector2i& pos) const;
+        bool OnTouchDrag(const Vector2i& pos) const;
 
     protected:
         void MarkCanvasDirty() const;
-        virtual void FillSelfMeshes(Vector<ViewMesh>& meshes);
-        void ComputeVerticesRectAndMatrix(Rect& rect, Matrix4x4& matrix);
+        virtual void FillSelfMeshes(Vector<ViewMesh>& meshes, const Rect& clip_rect);
+        void ComputeVerticesMatrix();
 
 	private:
 		CanvasRenderer* m_canvas;
@@ -114,15 +144,16 @@ namespace Viry3D
 		Vector2 m_pivot;
         Vector2i m_size;
         Vector2i m_offset;
+        Vector4 m_margin;
         Quaternion m_local_rotation;
         Vector2 m_local_scale;
-        Rect m_rect;
-        Quaternion m_rotation;
-        Vector2 m_scale;
-        std::function<bool()> m_on_touch_down_inside;
-        std::function<bool()> m_on_touch_move_inside;
-        std::function<bool()> m_on_touch_up_inside;
-        std::function<bool()> m_on_touch_up_outside;
-        std::function<bool()> m_on_touch_drag;
+        bool m_clip_rect;
+        Recti m_rect;
+        Matrix4x4 m_vertex_matrix;
+        InputAction m_on_touch_down_inside;
+        InputAction m_on_touch_move_inside;
+        InputAction m_on_touch_up_inside;
+        InputAction m_on_touch_up_outside;
+        InputAction m_on_touch_drag;
 	};
 }

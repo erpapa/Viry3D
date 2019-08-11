@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -27,60 +27,86 @@
 
 namespace Viry3D
 {
-	bool File::Exist(const String& path)
-	{
-		std::ifstream is(path.CString(), std::ios::binary);
+#if VR_UWP
+    extern bool FileExist(const String& path);
+    extern ByteBuffer FileReadAllBytes(const String& path);
+    extern bool FileWriteAllBytes(const String& path, const ByteBuffer& buffer);
 
-		bool exist = !(!is);
+    bool File::Exist(const String& path)
+    {
+        return FileExist(path);
+    }
 
-		if (exist)
-		{
-			is.close();
-		}
+    ByteBuffer File::ReadAllBytes(const String& path)
+    {
+        return FileReadAllBytes(path);
+    }
 
-		return exist;
-	}
+    bool File::WriteAllBytes(const String& path, const ByteBuffer& buffer)
+    {
+        return FileWriteAllBytes(path, buffer);
+    }
+#else
+    bool File::Exist(const String& path)
+    {
+        std::ifstream is(path.CString(), std::ios::binary);
 
-	ByteBuffer File::ReadAllBytes(const String& path)
-	{
-		ByteBuffer buffer;
+        bool exist = !(!is);
 
-		std::ifstream is(path.CString(), std::ios::binary);
-		if (is)
-		{
-			is.seekg(0, std::ios::end);
-			int size = (int) is.tellg();
-			is.seekg(0, std::ios::beg);
+        if (exist)
+        {
+            is.close();
+        }
 
-			buffer = ByteBuffer(size);
+        return exist;
+    }
 
-			is.read((char*) buffer.Bytes(), size);
-			is.close();
-		}
+    ByteBuffer File::ReadAllBytes(const String& path)
+    {
+        ByteBuffer buffer;
 
-		return buffer;
-	}
+        std::ifstream is(path.CString(), std::ios::binary);
+        if (is)
+        {
+            is.seekg(0, std::ios::end);
+            int size = (int) is.tellg();
+            is.seekg(0, std::ios::beg);
 
-	void File::WriteAllBytes(const String& path, const ByteBuffer& buffer)
-	{
-		std::ofstream os(path.CString(), std::ios::binary);
+            buffer = ByteBuffer(size);
 
-		if (os)
-		{
-			os.write((const char*) buffer.Bytes(), buffer.Size());
-			os.close();
-		}
-	}
+            is.read((char*) buffer.Bytes(), size);
+            is.close();
+        }
+
+        return buffer;
+    }
+
+    bool File::WriteAllBytes(const String& path, const ByteBuffer& buffer)
+    {
+        std::ofstream os(path.CString(), std::ios::binary);
+        if (os)
+        {
+            os.write((const char*) buffer.Bytes(), buffer.Size());
+            os.close();
+
+            return true;
+        }
+        else
+        {
+            return false;
+        }
+    }
+#endif
 
 	String File::ReadAllText(const String& path)
 	{
 		return String(File::ReadAllBytes(path));
 	}
 
-	void File::WriteAllText(const String& path, const String& text)
+    bool File::WriteAllText(const String& path, const String& text)
 	{
 		ByteBuffer buffer((byte*) text.CString(), text.Size());
-        File::WriteAllBytes(path, buffer);
+        return File::WriteAllBytes(path, buffer);
 	}
 
     void File::Delete(const String& path)

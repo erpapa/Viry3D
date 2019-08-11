@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ namespace Viry3D
 		void Clear();
 		int Size() const;
 		bool Empty() const;
-        bool Contains(const V& v);
+        bool Contains(const V& v) const;
 		bool Remove(const V& v);
 		void RemoveAll(const V& v);
 
@@ -155,7 +155,7 @@ namespace Viry3D
 	}
 
     template<class V>
-    bool List<V>::Contains(const V& v)
+    bool List<V>::Contains(const V& v) const
     {
         for (auto i = m_list.begin(); i != m_list.end(); ++i)
         {

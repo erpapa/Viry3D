@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,110 +17,103 @@
 
 #pragma once
 
-#include "Node.h"
-#include "Display.h"
+#include "Component.h"
 #include "CameraClearFlags.h"
 #include "Color.h"
 #include "math/Rect.h"
 #include "math/Matrix4x4.h"
-#include "container/Vector.h"
 #include "container/List.h"
+#include "private/backend/DriverApi.h"
 
 namespace Viry3D
 {
-    class Texture;
+	class Texture;
     class Renderer;
+	class RenderTarget;
+	class Material;
+	class Mesh;
 
-    struct RendererInstance
-    {
-        Ref<Renderer> renderer;
-        bool cmd_dirty = true;
-        VkCommandBuffer cmd = VK_NULL_HANDLE;
-
-        bool operator ==(const RendererInstance& a) const
-        {
-            return this->renderer == a.renderer;
-        }
-    };
-
-    class Camera : public Node
+    class Camera : public Component
     {
     public:
-        Camera();
+		static void Init();
+		static void Done();
+		static void RenderAll();
+        static void OnResizeAll(int width, int height);
+		static void Blit(const Ref<RenderTarget>& src, const Ref<RenderTarget>& dst, const Ref<Material>& mat = Ref<Material>(), int pass = -1);
+		Camera();
         virtual ~Camera();
+		int GetDepth() const { return m_depth; }
+		void SetDepth(int depth);
+        uint32_t GetCullingMask() const { return m_culling_mask; }
+        void SetCullingMask(uint32_t mask);
+		CameraClearFlags GetClearFlags() const { return m_clear_flags; }
+		void SetClearFlags(CameraClearFlags flags);
+		const Color& GetClearColor() const { return m_clear_color; }
+		void SetClearColor(const Color& color);
+		const Rect& GetViewportRect() const { return m_viewport_rect; }
+		void SetViewportRect(const Rect& rect);
+		float GetFieldOfView() const { return m_field_of_view; }
+		void SetFieldOfView(float fov);
+        float GetAspect() const;
+        void SetAspect(float aspect);
+		float GetNearClip() const { return m_near_clip; }
+		void SetNearClip(float clip);
+		float GetFarClip() const { return m_far_clip; }
+		void SetFarClip(float clip);
+		bool IsOrthographic() const { return m_orthographic; }
+		void SetOrthographic(bool enable);
+		float GetOrthographicSize() const { return m_orthographic_size; }
+		void SetOrthographicSize(float size);
+		const Matrix4x4& GetViewMatrix();
+		const Matrix4x4& GetProjectionMatrix();
+		void SetViewMatrixExternal(const Matrix4x4& mat);
+		void SetProjectionMatrixExternal(const Matrix4x4& mat);
+		const Ref<Texture>& GetRenderTargetColor() const { return m_render_target_color; }
+		const Ref<Texture>& GetRenderTargetDepth() const { return m_render_target_depth; }
+		void SetRenderTarget(const Ref<Texture>& color, const Ref<Texture>& depth);
+		int GetTargetWidth() const;
+		int GetTargetHeight() const;
 
-        CameraClearFlags GetClearFlags() const { return m_clear_flags; }
-        void SetClearFlags(CameraClearFlags flags);
-        const Color& GetClearColor() const { return m_clear_color; }
-        void SetClearColor(const Color& color);
-        const Rect& GetViewportRect() const { return m_viewport_rect; }
-        void SetViewportRect(const Rect& rect);
-        int GetDepth() const { return m_depth; }
-        void SetDepth(int depth);
-        bool HasRenderTarget() const { return m_render_target_color || m_render_target_depth; }
-        const Ref<Texture>& GetRenderTargetColor() const { return m_render_target_color; }
-        const Ref<Texture>& GetRenderTargetDepth() const { return m_render_target_depth; }
-        void SetRenderTarget(const Ref<Texture>& color_texture, const Ref<Texture>& depth_texture);
-        void Update();
-        void OnFrameEnd();
+	protected:
+		virtual void OnTransformDirty();
+
+	private:
         void OnResize(int width, int height);
-        void OnPause();
-        VkRenderPass GetRenderPass() const { return m_render_pass; }
-        VkFramebuffer GetFramebuffer(int index) const;
-        int GetTargetWidth() const;
-        int GetTargetHeight() const;
-        void AddRenderer(const Ref<Renderer>& renderer);
-        void RemoveRenderer(const Ref<Renderer>& renderer);
-        void MarkRendererOrderDirty();
-        void MarkInstanceCmdDirty(Renderer* renderer);
-        Vector<VkCommandBuffer> GetInstanceCmds() const;
-        float GetFieldOfView() const { return m_field_of_view; }
-        void SetFieldOfView(float fov);
-        float GetNearClip() const { return m_near_clip; }
-        void SetNearClip(float clip);
-        float GetFarClip() const { return m_far_clip; }
-        void SetFarClip(float clip);
-        bool IsOrthographic() const { return m_orthographic; }
-        void SetOrthographic(bool enable);
-        float GetOrthographicSize() const { return m_orthographic_size; }
-        void SetOrthographicSize(float size);
-        const Matrix4x4& GetViewMatrix();
-        const Matrix4x4& GetProjectionMatrix();
+        void CullRenderers(const List<Renderer*>& renderers, List<Renderer*>& result);
+		void UpdateViewUniforms();
+		void Draw(const List<Renderer*>& renderers);
+        void DrawRenderer(Renderer* renderer);
+		bool HasPostProcessing();
+		void PostProcessing();
 
-    protected:
-        virtual void OnMatrixDirty();
-
-    private:
-        void UpdateRenderPass();
-        void ClearRenderPass();
-        void SortRenderers();
-        void UpdateInstanceCmds();
-        void ClearInstanceCmds();
-        void BuildInstanceCmd(VkCommandBuffer cmd, const Ref<Renderer>& renderer);
-        void UpdateRenderers();
-
-    private:
-        bool m_render_pass_dirty;
-        bool m_renderer_order_dirty;
-        bool m_instance_cmds_dirty;
-        CameraClearFlags m_clear_flags;
-        Color m_clear_color;
-        Rect m_viewport_rect;
-        int m_depth;
-        Ref<Texture> m_render_target_color;
-        Ref<Texture> m_render_target_depth;
-        VkRenderPass m_render_pass;
-        Vector<VkFramebuffer> m_framebuffers;
-        List<RendererInstance> m_renderers;
-        VkCommandPool m_cmd_pool;
-        Matrix4x4 m_view_matrix;
-        bool m_view_matrix_dirty;
-        Matrix4x4 m_projection_matrix;
-        bool m_projection_matrix_dirty;
-        float m_field_of_view;
-        float m_near_clip;
-        float m_far_clip;
-        bool m_orthographic;
-        float m_orthographic_size;
+	private:
+		static List<Camera*> m_cameras;
+		static Camera* m_current_camera;
+		static bool m_cameras_order_dirty;
+		static Ref<Mesh> m_quad_mesh;
+		static Ref<Material> m_blit_material;
+		int m_depth;
+        uint32_t m_culling_mask;
+		CameraClearFlags m_clear_flags;
+		Color m_clear_color;
+		Rect m_viewport_rect;
+		float m_field_of_view;
+        float m_aspect;
+		float m_near_clip;
+		float m_far_clip;
+		bool m_orthographic;
+		float m_orthographic_size;
+		Matrix4x4 m_view_matrix;
+		bool m_view_matrix_dirty;
+		Matrix4x4 m_projection_matrix;
+		bool m_projection_matrix_dirty;
+		bool m_view_matrix_external;
+		bool m_projection_matrix_external;
+		Ref<Texture> m_render_target_color;
+		Ref<Texture> m_render_target_depth;
+		Ref<RenderTarget> m_post_processing_target;
+		filament::backend::UniformBufferHandle m_view_uniform_buffer;
+		filament::backend::RenderTargetHandle m_render_target;
     };
 }

@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -18,17 +18,18 @@
 #include "Button.h"
 #include "Label.h"
 #include "Font.h"
+#include "Engine.h"
 
 namespace Viry3D
 {
     Button::Button():
         m_touch_down(false)
     {
-        this->SetOnTouchDownInside([this]() {
+        this->SetOnTouchDownInside([this](const Vector2i& pos) {
             this->m_touch_down = true;
             return true;
         });
-        this->SetOnTouchUpInside([this]() {
+        this->SetOnTouchUpInside([this](const Vector2i& pos) {
             if (this->m_touch_down)
             {
                 this->OnClick();
@@ -36,7 +37,7 @@ namespace Viry3D
             }
             return true;
         });
-        this->SetOnTouchUpOutside([this]() {
+        this->SetOnTouchUpOutside([this](const Vector2i& pos) {
             this->m_touch_down = false;
             return false;
         });
@@ -52,8 +53,8 @@ namespace Viry3D
         if (!m_label)
         {
             m_label = RefMake<Label>();
-            m_label->SetSize(this->GetSize());
-            m_label->SetFont(Font::GetFont(FontType::PingFangSC));
+            m_label->SetSize(Vector2i(VIEW_SIZE_FILL_PARENT, VIEW_SIZE_FILL_PARENT));
+            m_label->SetFont(Font::GetFont(FontType::Consola));
             m_label->SetColor(Color(0, 0, 0, 1));
 
             this->AddSubview(m_label);
@@ -66,7 +67,7 @@ namespace Viry3D
     {
         if (m_on_click)
         {
-            m_on_click();
+            Engine::Instance()->PostAction(m_on_click);
         }
     }
 }

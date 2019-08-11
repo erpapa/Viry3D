@@ -7,8 +7,9 @@
 *.tmp
 *.iml
 *.mp4
+*.pri
 local.properties
-app.exe
+*.exe
 viry3d.lib
 build
 .vs

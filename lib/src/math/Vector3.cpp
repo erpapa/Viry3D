@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -22,6 +22,18 @@
 
 namespace Viry3D
 {
+    const Vector3& Vector3::Zero()
+    {
+        static const Vector3 s_zero(0, 0, 0);
+        return s_zero;
+    }
+
+    const Vector3& Vector3::One()
+    {
+        static const Vector3 s_one(1, 1, 1);
+        return s_one;
+    }
+
 	Vector3::Vector3(float x, float y, float z):
 		x(x), y(y), z(z)
 	{
@@ -32,18 +44,6 @@ namespace Viry3D
 		y(v2.y),
 		z(0)
 	{
-	}
-
-	Vector3 Vector3::Zero()
-	{
-		static auto s_zero = Vector3(0, 0, 0);
-		return s_zero;
-	}
-
-	Vector3 Vector3::One()
-	{
-		static auto s_one = Vector3(1, 1, 1);
-		return s_one;
 	}
 
 	void Vector3::Normalize()
@@ -59,7 +59,12 @@ namespace Viry3D
 			z = z * inv;
 		}
 	}
-
+    
+    Vector3 Vector3::Normalized() const
+    {
+        return Vector3::Normalize(*this);
+    }
+    
 	Vector3 Vector3::Normalize(const Vector3& value)
 	{
 		Vector3 v = value;
@@ -154,6 +159,17 @@ namespace Viry3D
 		*this = *this * v;
 		return *this;
 	}
+    
+    Vector3 Vector3::operator /(float v) const
+    {
+        return Vector3(x / v, y / v, z / v);
+    }
+    
+    Vector3 Vector3::operator /=(float v)
+    {
+        *this = *this / v;
+        return *this;
+    }
 
 	bool Vector3::operator !=(const Vector3& v) const
 	{
@@ -167,9 +183,14 @@ namespace Viry3D
 			Mathf::FloatEqual(v.z, z);
 	}
 
+    float Vector3::Dot(const Vector3& a, const Vector3& b)
+    {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+    
 	float Vector3::Dot(const Vector3& v) const
 	{
-		return x * v.x + y * v.y + z * v.z;
+        return Vector3::Dot(*this, v);
 	}
 
 	String Vector3::ToString() const
@@ -199,4 +220,9 @@ namespace Viry3D
 	{
 		return v.SqrMagnitude();
 	}
+    
+    float Vector3::Distance(const Vector3& a, const Vector3& b)
+    {
+        return (a - b).Magnitude();
+    }
 }

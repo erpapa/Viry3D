@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@
 #include "Debug.h"
 #include <time.h>
 
-#if VR_WINDOWS
+#if VR_WINDOWS || VR_UWP
 #include <windows.h>
-#elif VR_IOS || VR_ANDROID || VR_MAC
+#elif VR_IOS || VR_ANDROID || VR_MAC || VR_WASM
 #include <sys/time.h>
 #endif
 
@@ -60,7 +60,7 @@ namespace Viry3D
 	{
 		long long t;
 
-#if VR_WINDOWS
+#if VR_WINDOWS || VR_UWP
 		SYSTEMTIME sys_time;
 		::GetLocalTime(&sys_time);
 
@@ -74,7 +74,7 @@ namespace Viry3D
 		tm.tm_isdst = -1;
 
 		t = mktime(&tm) * (long long) 1000 + sys_time.wMilliseconds;
-#elif VR_IOS || VR_ANDROID || VR_MAC
+#elif VR_IOS || VR_ANDROID || VR_MAC || VR_WASM
 		struct timeval tv;
 		gettimeofday(&tv, nullptr);
 		t = tv.tv_sec;

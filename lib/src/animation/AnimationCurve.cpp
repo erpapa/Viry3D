@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -43,6 +43,17 @@ namespace Viry3D
         return value;
     }
 
+    AnimationCurve AnimationCurve::Linear(float time_start, float value_start, float time_end, float value_end)
+    {
+        AnimationCurve curve;
+        
+        float tangent = (value_end - value_start) / (time_end - time_start);
+        curve.AddKey(time_start, value_start, tangent, tangent);
+        curve.AddKey(time_end, value_end, tangent, tangent);
+        
+        return curve;
+    }
+    
     void AnimationCurve::AddKey(float time, float value, float in_tangent, float out_tangent)
     {
         m_keys.Add(Key({ time, value, in_tangent, out_tangent }));

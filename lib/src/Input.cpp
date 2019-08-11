@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,7 +17,9 @@
 
 #include "Input.h"
 #include "container/List.h"
+#include "container/Vector.h"
 #include "memory/Memory.h"
+#include "Debug.h"
 
 Viry3D::Vector<Viry3D::Touch> g_input_touches;
 Viry3D::List<Viry3D::Touch> g_input_touch_buffer;
@@ -29,6 +31,7 @@ bool g_mouse_button_up[3];
 Viry3D::Vector3 g_mouse_position;
 bool g_mouse_button_held[3];
 float g_mouse_scroll_wheel = 0;
+static Viry3D::Vector<unsigned short> g_input_queue_characters;
 
 namespace Viry3D
 {
@@ -82,6 +85,16 @@ namespace Viry3D
 		return g_key_up[(int) key];
 	}
 
+    void Input::AddInputCharacter(unsigned short c)
+    {
+        g_input_queue_characters.Add(c);
+    }
+
+    const Vector<unsigned short>& Input::GetInputQueueCharacters()
+    {
+        return g_input_queue_characters;
+    }
+
 	void Input::Update()
 	{
 		g_input_touches.Clear();
@@ -96,5 +109,7 @@ namespace Viry3D
 		Memory::Zero(g_mouse_button_down, sizeof(g_mouse_button_down));
 		Memory::Zero(g_mouse_button_up, sizeof(g_mouse_button_up));
         g_mouse_scroll_wheel = 0;
+
+        g_input_queue_characters.Clear();
 	}
 }

@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -18,14 +18,21 @@
 #pragma once
 
 #include "string/String.h"
+#include "GameObject.h"
+#include "graphics/Texture.h"
+#include "graphics/Mesh.h"
+#include "container/Map.h"
 
 namespace Viry3D
 {
-    class Node;
-
     class Resources
     {
     public:
-        static Ref<Node> Load(const String& path);
+		static void Init();
+		static void Done();
+        static Ref<GameObject> LoadGameObject(const String& path);
+		static Ref<Mesh> LoadMesh(const String& path);
+        static Ref<Texture> LoadTexture(const String& path);
+        static Ref<Texture> LoadLightmap(const String& path);
     };
 }

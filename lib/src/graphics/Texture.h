@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,60 +17,79 @@
 
 #pragma once
 
-#include "Display.h"
-#include "thread/ThreadPool.h"
+#include "Object.h"
+#include "private/backend/DriverApi.h"
+#include <functional>
 
 namespace Viry3D
 {
-    enum class CubemapFace
+	class ByteBuffer;
+	class Image;
+
+	enum class CubemapFace
+	{
+		Unknown = -1,
+
+		PositiveX,
+		NegativeX,
+		PositiveY,
+		NegativeY,
+		PositiveZ,
+		NegativeZ,
+
+		Count
+	};
+
+	enum class TextureFormat
+	{
+		None,
+		R8,
+		R8G8,
+		R8G8B8A8,
+		R16G16B16A16F,
+		D16,
+		D24X8,
+		D32,
+		D24S8,
+		D32S8,
+		S8,
+		BC1_RGB,
+		BC1_RGBA,
+		BC2,
+		BC3,
+		ETC2_R8G8B8,
+		ETC2_R8G8B8A1,
+		ETC2_R8G8B8A8,
+		ASTC_4x4,
+	};
+
+	enum class FilterMode
+	{
+		None = -1,
+		Nearest,
+		Linear,
+		Trilinear,
+	};
+
+	enum class SamplerAddressMode
+	{
+		None = -1,
+		Repeat,
+		ClampToEdge,
+		Mirror,
+		MirrorOnce,
+	};
+
+    class Texture : public Object
     {
-        Unknown = -1,
-
-        PositiveX,
-        NegativeX,
-        PositiveY,
-        NegativeY,
-        PositiveZ,
-        NegativeZ,
-
-        Count
-    };
-
-    enum class TextureFormat
-    {
-        None,
-        R8,
-        R8G8B8A8,
-        D16,
-        D24X8,
-        D32,
-        D16S8,
-        D24S8,
-        D32S8,
-        S8,
-    };
-
-    enum class FilterMode
-    {
-        None,
-        Nearest,
-        Linear,
-    };
-
-    enum class SamplerAddressMode
-    {
-        None,
-        ClampToEdge,
-        Repeat,
-    };
-
-    class Texture : public Thread::Res
-    {
-    private:
-        friend class DisplayPrivate;
-
     public:
-        static ByteBuffer LoadImageFromFile(const String& path, int& width, int& height, int& bpp);
+        static void Init();
+        static void Done();
+		static const Ref<Image>& GetSharedWhiteImage();
+        static const Ref<Texture>& GetSharedWhiteTexture();
+        static const Ref<Texture>& GetSharedBlackTexture();
+        static const Ref<Texture>& GetSharedNormalTexture();
+        static const Ref<Texture>& GetSharedCubemap();
         static Ref<Texture> LoadTexture2DFromFile(
             const String& path,
             FilterMode filter_mode,
@@ -83,82 +102,77 @@ namespace Viry3D
             TextureFormat format,
             FilterMode filter_mode,
             SamplerAddressMode wrap_mode,
-            bool gen_mipmap,
-            bool dynamic);
+            bool gen_mipmap);
+        static Ref<Texture> CreateTexture2D(
+            int width,
+            int height,
+            TextureFormat format,
+            FilterMode filter_mode,
+            SamplerAddressMode wrap_mode,
+            bool mipmap);
         static Ref<Texture> CreateCubemap(
             int size,
             TextureFormat format,
             FilterMode filter_mode,
             SamplerAddressMode wrap_mode,
             bool mipmap);
-        static Ref<Texture> CreateRenderTexture(
-            int width,
-            int height,
-            TextureFormat format,
-            bool create_sampler,
-            FilterMode filter_mode,
-            SamplerAddressMode wrap_mode);
-        static Ref<Texture> CreateTexture2DArrayFromMemory(
-            const Vector<ByteBuffer>& pixels,
-            int width,
-            int height,
-            int layer_count,
-            TextureFormat format,
-            FilterMode filter_mode,
-            SamplerAddressMode wrap_mode,
-            bool gen_mipmap,
-            bool dynamic);
-        static TextureFormat ChooseDepthFormatSupported(bool sample);
-		static Ref<Texture> GetSharedWhiteTexture();
-		static Ref<Texture> GetSharedBlackTexture();
-		static Ref<Texture> GetSharedNormalTexture();
-		static Ref<Texture> GetSharedCubemap();
-		static void Done();
+		static Ref<Texture> CreateRenderTexture(
+			int width,
+			int height,
+			TextureFormat format,
+			FilterMode filter_mode,
+			SamplerAddressMode wrap_mode);
+		static TextureFormat SelectFormat(const Vector<TextureFormat>& formats, bool render_texture);
+		static TextureFormat SelectDepthFormat();
         virtual ~Texture();
-        int GetWidth() const { return m_width; }
-        int GetHeight() const { return m_height; }
-        int GetMipmapLevelCount() const { return m_mipmap_level_count; }
-        VkFormat GetFormat() const { return m_format; }
-        VkImage GetImage() const { return m_image; }
-        VkImageView GetImageView() const { return m_image_view; }
-        VkSampler GetSampler() const { return m_sampler; }
-        void UpdateTexture2D(const ByteBuffer& pixels, int x, int y, int w, int h);
-        void UpdateCubemap(const ByteBuffer& pixels, CubemapFace face, int level);
-        void UpdateTexture2DArray(const ByteBuffer& pixels, int layer, int level);
-        void CopyTexture(
-            const Ref<Texture>& src_texture,
-            int src_layer, int src_level,
-            int src_x, int src_y,
-            int layer, int level,
-            int x, int y,
-            int w, int h);
-        void CopyToMemory(ByteBuffer& pixels, int layer, int level);
+		void UpdateCubemap(const ByteBuffer& pixels, int level, const Vector<int>& face_offsets);
+		void UpdateTexture(const ByteBuffer& pixels, int layer, int level, int x, int y, int w, int h);
+		void CopyTexture(
+			int dst_layer, int dst_level,
+			int dst_x, int dst_y,
+			int dst_w, int dst_h,
+			const Ref<Texture>& src,
+			int src_layer, int src_level,
+			int src_x, int src_y,
+			int src_w, int src_h,
+			FilterMode blit_filter);
+		void CopyToMemory(
+			ByteBuffer& pixels,
+			int layer, int level,
+			int x, int y,
+			int w, int h,
+			std::function<void(const ByteBuffer&)> on_complete);
         void GenMipmaps();
+		int GetWidth() const { return m_width; }
+		int GetHeight() const { return m_height; }
+		TextureFormat GetFormat() const { return m_format; }
+        int GetMipmapLevelCount() const { return m_mipmap_level_count; }
+        int GetArraySize() const { return m_array_size; }
+        bool IsCubemap() const { return m_cubemap; }
+        FilterMode GetFilterMode() const { return m_filter_mode; }
+        SamplerAddressMode GetSamplerAddressMode() const { return m_wrap_mode; }
+        const filament::backend::TextureHandle& GetTexture() const { return m_texture; }
+        const filament::backend::SamplerParams& GetSampler() const { return m_sampler; }
 
     private:
         Texture();
-        void CopyBufferToImageBegin();
-        void CopyBufferToImage(const Ref<BufferObject>& image_buffer, int x, int y, int w, int h, int face, int level);
-        void CopyBufferToImageEnd();
-        int GetLayerCount();
-
-    private:
-		static Ref<Texture> m_shared_white_texture;
-		static Ref<Texture> m_shared_black_texture;
-		static Ref<Texture> m_shared_normal_texture;
-		static Ref<Texture> m_shared_cubemap;
-        int m_width;
-        int m_height;
-        VkFormat m_format;
-        VkImage m_image;
-        VkImageView m_image_view;
-        VkDeviceMemory m_memory;
-        VkMemoryAllocateInfo m_memory_info;
-        VkSampler m_sampler;
-        Ref<BufferObject> m_image_buffer;
+        void UpdateSampler(bool depth);
+        
+	private:
+		static Ref<Image> m_shared_white_image;
+        static Ref<Texture> m_shared_white_texture;
+        static Ref<Texture> m_shared_black_texture;
+        static Ref<Texture> m_shared_normal_texture;
+        static Ref<Texture> m_shared_cubemap;
+		int m_width;
+		int m_height;
         int m_mipmap_level_count;
-        bool m_dynamic;
-        bool m_cubemap;
         int m_array_size;
+        bool m_cubemap;
+        TextureFormat m_format;
+        FilterMode m_filter_mode;
+        SamplerAddressMode m_wrap_mode;
+        filament::backend::TextureHandle m_texture;
+        filament::backend::SamplerParams m_sampler;
     };
 }

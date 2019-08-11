@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,491 +17,134 @@
 
 #include "Texture.h"
 #include "Image.h"
-#include "BufferObject.h"
-#include "memory/Memory.h"
-#include "io/File.h"
+#include "Engine.h"
 #include "math/Mathf.h"
-#include "Debug.h"
+#include "memory/Memory.h"
 
 namespace Viry3D
 {
+	Ref<Image> Texture::m_shared_white_image;
 	Ref<Texture> Texture::m_shared_white_texture;
 	Ref<Texture> Texture::m_shared_black_texture;
 	Ref<Texture> Texture::m_shared_normal_texture;
 	Ref<Texture> Texture::m_shared_cubemap;
 
-    static VkFormat TextureFormatToVkFormat(TextureFormat format)
-    {
-        switch (format)
-        {
-            case TextureFormat::R8:
-                return VK_FORMAT_R8_UNORM;
-            case TextureFormat::R8G8B8A8:
-                return VK_FORMAT_R8G8B8A8_UNORM;
-            case TextureFormat::D16:
-                return VK_FORMAT_D16_UNORM;
-            case TextureFormat::D24X8:
-                return VK_FORMAT_X8_D24_UNORM_PACK32;
-            case TextureFormat::D32:
-                return VK_FORMAT_D32_SFLOAT;
-            case TextureFormat::D16S8:
-                return VK_FORMAT_D16_UNORM_S8_UINT;
-            case TextureFormat::D24S8:
-                return VK_FORMAT_D24_UNORM_S8_UINT;
-            case TextureFormat::D32S8:
-                return VK_FORMAT_D32_SFLOAT_S8_UINT;
-            case TextureFormat::S8:
-                return VK_FORMAT_S8_UINT;
-            default:
-                return VK_FORMAT_UNDEFINED;
-        }
-    }
+	void Texture::Init()
+	{
 
-    static TextureFormat VkFormatToTextureFormat(VkFormat format)
-    {
-        switch (format)
-        {
-            case VK_FORMAT_R8_UNORM:
-                return TextureFormat::R8;
-            case VK_FORMAT_R8G8B8A8_UNORM:
-                return TextureFormat::R8G8B8A8;
-            case VK_FORMAT_D16_UNORM:
-                return TextureFormat::D16;
-            case VK_FORMAT_X8_D24_UNORM_PACK32:
-                return TextureFormat::D24X8;
-            case VK_FORMAT_D32_SFLOAT:
-                return TextureFormat::D32;
-            case VK_FORMAT_D16_UNORM_S8_UINT:
-                return TextureFormat::D16S8;
-            case VK_FORMAT_D24_UNORM_S8_UINT:
-                return TextureFormat::D24S8;
-            case VK_FORMAT_D32_SFLOAT_S8_UINT:
-                return TextureFormat::D32S8;
-            case VK_FORMAT_S8_UINT:
-                return TextureFormat::S8; 
-            default:
-                return TextureFormat::None;
-        }
-    }
+	}
 
-    static VkFilter FilterModeToVkFilter(FilterMode mode)
-    {
-        switch (mode)
-        {
-            case FilterMode::None:
-                return VK_FILTER_MAX_ENUM;
-            case FilterMode::Nearest:
-                return VK_FILTER_NEAREST;
-            case FilterMode::Linear:
-                return VK_FILTER_LINEAR;
-            default:
-                return VK_FILTER_LINEAR;
-        }
-    }
+	void Texture::Done()
+	{
+		m_shared_white_image.reset();
+		m_shared_white_texture.reset();
+		m_shared_black_texture.reset();
+		m_shared_normal_texture.reset();
+		m_shared_cubemap.reset();
+	}
 
-    static VkSamplerAddressMode SamplerAddressModeToVkMode(SamplerAddressMode mode)
-    {
-        switch (mode)
-        {
-            case SamplerAddressMode::None:
-                return VK_SAMPLER_ADDRESS_MODE_MAX_ENUM;
-            case SamplerAddressMode::ClampToEdge:
-                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-            case SamplerAddressMode::Repeat:
-                return VK_SAMPLER_ADDRESS_MODE_REPEAT;
-            default:
-                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-        }
-    }
+	const Ref<Image>& Texture::GetSharedWhiteImage()
+	{
+		if (!m_shared_white_image)
+		{
+			ByteBuffer pixels(4 * 9);
+			for (int i = 0; i < 9; ++i)
+			{
+				pixels[i * 4 + 0] = 255;
+				pixels[i * 4 + 1] = 255;
+				pixels[i * 4 + 2] = 255;
+				pixels[i * 4 + 3] = 255;
+			}
 
-    TextureFormat Texture::ChooseDepthFormatSupported(bool sample)
-    {
-        if (sample)
-        {
-            VkFormat format = Display::Instance()->ChooseFormatSupported(
-                { VK_FORMAT_D32_SFLOAT, VK_FORMAT_X8_D24_UNORM_PACK32, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
-                VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT);
-            return VkFormatToTextureFormat(format);
-        }
-        else
-        {
-            VkFormat format = Display::Instance()->ChooseFormatSupported(
-                { VK_FORMAT_D32_SFLOAT, VK_FORMAT_X8_D24_UNORM_PACK32, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
-                VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-            return VkFormatToTextureFormat(format);
-        }
-    }
+			m_shared_white_image = RefMake<Image>();
+			m_shared_white_image->width = 3;
+			m_shared_white_image->height = 3;
+			m_shared_white_image->format = ImageFormat::R8G8B8A8;
+			m_shared_white_image->data = pixels;
+		}
 
-    ByteBuffer Texture::LoadImageFromFile(const String& path, int& width, int& height, int& bpp)
-    {
-        ByteBuffer pixels;
+		return m_shared_white_image;
+	}
 
-        if (File::Exist(path))
-        {
-            if (path.EndsWith(".png"))
-            {
-                ByteBuffer png = File::ReadAllBytes(path);
-                pixels = Image::LoadPNG(png, width, height, bpp);
-            }
-            else if (path.EndsWith(".jpg"))
-            {
-                ByteBuffer jpg = File::ReadAllBytes(path);
-                pixels = Image::LoadJPEG(jpg, width, height, bpp);
-            }
-            else
-            {
-                assert(!"image file format not support");
-            }
-
-            if (bpp == 24)
-            {
-                int pixel_count = pixels.Size() / 3;
-                ByteBuffer rgba(pixel_count * 4);
-                for (int i = 0; i < pixel_count; i++)
-                {
-                    rgba[i * 4 + 0] = pixels[i * 3 + 0];
-                    rgba[i * 4 + 1] = pixels[i * 3 + 1];
-                    rgba[i * 4 + 2] = pixels[i * 3 + 2];
-                    rgba[i * 4 + 3] = 255;
-                }
-                pixels = rgba;
-                bpp = 32;
-            }
-        }
-
-        return pixels;
-    }
-
-    Ref<Texture> Texture::LoadTexture2DFromFile(
-        const String& path,
-        FilterMode filter_mode,
-        SamplerAddressMode wrap_mode,
-        bool gen_mipmap)
-    {
-        Ref<Texture> texture;
-
-        int width;
-        int height;
-        int bpp;
-        ByteBuffer pixels = Texture::LoadImageFromFile(path, width, height, bpp);
-        if (pixels.Size() > 0)
-        {
-            TextureFormat format;
-
-            if (bpp == 32)
-            {
-                format = TextureFormat::R8G8B8A8;
-            }
-            else if (bpp == 8)
-            {
-                format = TextureFormat::R8;
-            }
-            else
-            {
-                assert(!"texture format not support");
-            }
-
-            texture = Texture::CreateTexture2DFromMemory(pixels, width, height, format, filter_mode, wrap_mode, gen_mipmap, false);
-        }
-
-        return texture;
-    }
-
-    Ref<Texture> Texture::CreateTexture2DFromMemory(
-        const ByteBuffer& pixels,
-        int width,
-        int height,
-        TextureFormat format,
-        FilterMode filter_mode,
-        SamplerAddressMode wrap_mode,
-        bool gen_mipmap,
-        bool dynamic)
-    {
-        Ref<Texture> texture;
-
-        int mipmap_level_count = 1;
-        if (gen_mipmap)
-        {
-            mipmap_level_count = (int) floor(Mathf::Log2((float) Mathf::Max(width, height))) + 1;
-        }
-
-        texture = Display::Instance()->CreateTexture(
-            VK_IMAGE_TYPE_2D,
-            VK_IMAGE_VIEW_TYPE_2D,
-            width,
-            height,
-            TextureFormatToVkFormat(format),
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-            VK_IMAGE_ASPECT_COLOR_BIT,
-            {
-                VK_COMPONENT_SWIZZLE_R,
-                VK_COMPONENT_SWIZZLE_G,
-                VK_COMPONENT_SWIZZLE_B,
-                VK_COMPONENT_SWIZZLE_A
-            },
-            mipmap_level_count,
-            false,
-            1);
-        Display::Instance()->CreateSampler(texture, FilterModeToVkFilter(filter_mode), SamplerAddressModeToVkMode(wrap_mode));
-
-        texture->m_dynamic = dynamic;
-
-        texture->UpdateTexture2D(pixels, 0, 0, width, height);
-
-        if (gen_mipmap)
-        {
-            texture->GenMipmaps();
-        }
-
-        return texture;
-    }
-
-    Ref<Texture> Texture::CreateCubemap(
-        int size,
-        TextureFormat format,
-        FilterMode filter_mode,
-        SamplerAddressMode wrap_mode,
-        bool mipmap)
-    {
-        Ref<Texture> texture;
-
-        int mipmap_level_count = 1;
-        if (mipmap)
-        {
-            mipmap_level_count = (int) floor(Mathf::Log2((float) size)) + 1;
-        }
-
-        texture = Display::Instance()->CreateTexture(
-            VK_IMAGE_TYPE_2D,
-            VK_IMAGE_VIEW_TYPE_CUBE,
-            size,
-            size,
-            TextureFormatToVkFormat(format),
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-            VK_IMAGE_ASPECT_COLOR_BIT,
-            {
-                VK_COMPONENT_SWIZZLE_R,
-                VK_COMPONENT_SWIZZLE_G,
-                VK_COMPONENT_SWIZZLE_B,
-                VK_COMPONENT_SWIZZLE_A
-            },
-            mipmap_level_count,
-            true,
-            1);
-        Display::Instance()->CreateSampler(texture, FilterModeToVkFilter(filter_mode), SamplerAddressModeToVkMode(wrap_mode));
-
-        return texture;
-    }
-
-    Ref<Texture> Texture::CreateRenderTexture(
-        int width,
-        int height,
-        TextureFormat format,
-        bool create_sampler,
-        FilterMode filter_mode,
-        SamplerAddressMode wrap_mode)
-    {
-        Ref<Texture> texture;
-
-        VkImageUsageFlags usage = VK_IMAGE_USAGE_SAMPLED_BIT;
-        VkImageAspectFlags aspect;
-
-        switch (format)
-        {
-            case TextureFormat::D16:
-            case TextureFormat::D24X8:
-            case TextureFormat::D32:
-                usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                aspect = VK_IMAGE_ASPECT_DEPTH_BIT;
-                break;
-            case TextureFormat::D16S8:
-            case TextureFormat::D24S8:
-            case TextureFormat::D32S8:
-                usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                aspect = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-                break;
-            case TextureFormat::S8:
-                usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-                aspect = VK_IMAGE_ASPECT_STENCIL_BIT;
-                break;
-            default:
-                usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-                aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-        }
-
-        texture = Display::Instance()->CreateTexture(
-            VK_IMAGE_TYPE_2D,
-            VK_IMAGE_VIEW_TYPE_2D,
-            width,
-            height,
-            TextureFormatToVkFormat(format),
-            usage,
-            aspect,
-            {
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-                VK_COMPONENT_SWIZZLE_IDENTITY,
-                VK_COMPONENT_SWIZZLE_IDENTITY
-            },
-            1,
-            false,
-            1);
-        if (create_sampler)
-        {
-            Display::Instance()->CreateSampler(texture, FilterModeToVkFilter(filter_mode), SamplerAddressModeToVkMode(wrap_mode));
-        }
-
-		Display::Instance()->BeginImageCmd();
-		Display::Instance()->SetImageLayout(
-			texture->GetImage(),
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-			{ aspect, 0, 1, 0, 1 },
-			VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			(VkAccessFlagBits) 0);
-		Display::Instance()->EndImageCmd();
-
-        return texture;
-    }
-
-    Ref<Texture> Texture::CreateTexture2DArrayFromMemory(
-        const Vector<ByteBuffer>& pixels,
-        int width,
-        int height,
-        int layer_count,
-        TextureFormat format,
-        FilterMode filter_mode,
-        SamplerAddressMode wrap_mode,
-        bool gen_mipmap,
-        bool dynamic)
-    {
-        Ref<Texture> texture;
-
-        int mipmap_level_count = 1;
-        if (gen_mipmap)
-        {
-            mipmap_level_count = (int) floor(Mathf::Log2((float) Mathf::Max(width, height))) + 1;
-        }
-
-        texture = Display::Instance()->CreateTexture(
-            VK_IMAGE_TYPE_2D,
-            VK_IMAGE_VIEW_TYPE_2D_ARRAY,
-            width,
-            height,
-            TextureFormatToVkFormat(format),
-            VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-            VK_IMAGE_ASPECT_COLOR_BIT,
-            {
-                VK_COMPONENT_SWIZZLE_R,
-                VK_COMPONENT_SWIZZLE_G,
-                VK_COMPONENT_SWIZZLE_B,
-                VK_COMPONENT_SWIZZLE_A
-            },
-            mipmap_level_count,
-            false,
-            layer_count);
-        Display::Instance()->CreateSampler(texture, FilterModeToVkFilter(filter_mode), SamplerAddressModeToVkMode(wrap_mode));
-
-        texture->m_dynamic = dynamic;
-
-        assert(pixels.Size() == layer_count);
-
-        for (int i = 0; i < layer_count; ++i)
-        {
-            texture->UpdateTexture2DArray(pixels[i], i, 0);
-        }
-
-        if (gen_mipmap)
-        {
-            texture->GenMipmaps();
-        }
-
-        return texture;
-    }
-
-	Ref<Texture> Texture::GetSharedWhiteTexture()
+	const Ref<Texture>& Texture::GetSharedWhiteTexture()
 	{
 		if (!m_shared_white_texture)
 		{
 			ByteBuffer pixels(4 * 9);
-            for (int i = 0; i < 9; ++i)
-            {
-                pixels[i * 4 + 0] = 255;
-                pixels[i * 4 + 1] = 255;
-                pixels[i * 4 + 2] = 255;
-                pixels[i * 4 + 3] = 255;
-            }
+			for (int i = 0; i < 9; ++i)
+			{
+				pixels[i * 4 + 0] = 255;
+				pixels[i * 4 + 1] = 255;
+				pixels[i * 4 + 2] = 255;
+				pixels[i * 4 + 3] = 255;
+			}
 
 			m_shared_white_texture = Texture::CreateTexture2DFromMemory(
 				pixels,
 				3,
 				3,
-                TextureFormat::R8G8B8A8,
-                FilterMode::Nearest,
-                SamplerAddressMode::ClampToEdge,
-				false,
+				TextureFormat::R8G8B8A8,
+				FilterMode::Nearest,
+				SamplerAddressMode::ClampToEdge,
 				false);
 		}
 
 		return m_shared_white_texture;
 	}
 
-	Ref<Texture> Texture::GetSharedBlackTexture()
+	const Ref<Texture>& Texture::GetSharedBlackTexture()
 	{
 		if (!m_shared_black_texture)
 		{
-            ByteBuffer pixels(4 * 9);
-            for (int i = 0; i < 9; ++i)
-            {
-                pixels[i * 4 + 0] = 0;
-                pixels[i * 4 + 1] = 0;
-                pixels[i * 4 + 2] = 0;
-                pixels[i * 4 + 3] = 255;
-            }
+			ByteBuffer pixels(4 * 9);
+			for (int i = 0; i < 9; ++i)
+			{
+				pixels[i * 4 + 0] = 0;
+				pixels[i * 4 + 1] = 0;
+				pixels[i * 4 + 2] = 0;
+				pixels[i * 4 + 3] = 255;
+			}
 
 			m_shared_black_texture = Texture::CreateTexture2DFromMemory(
 				pixels,
 				3,
 				3,
-                TextureFormat::R8G8B8A8,
-                FilterMode::Nearest,
-                SamplerAddressMode::ClampToEdge,
-				false,
+				TextureFormat::R8G8B8A8,
+				FilterMode::Nearest,
+				SamplerAddressMode::ClampToEdge,
 				false);
 		}
 
 		return m_shared_black_texture;
 	}
 
-	Ref<Texture> Texture::GetSharedNormalTexture()
+	const Ref<Texture>& Texture::GetSharedNormalTexture()
 	{
 		if (!m_shared_normal_texture)
 		{
-            ByteBuffer pixels(4 * 9);
-            for (int i = 0; i < 9; ++i)
-            {
-                pixels[i * 4 + 0] = 127;
-                pixels[i * 4 + 1] = 127;
-                pixels[i * 4 + 2] = 255;
-                pixels[i * 4 + 3] = 255;
-            }
+			ByteBuffer pixels(4 * 9);
+			for (int i = 0; i < 9; ++i)
+			{
+				pixels[i * 4 + 0] = 127;
+				pixels[i * 4 + 1] = 127;
+				pixels[i * 4 + 2] = 255;
+				pixels[i * 4 + 3] = 255;
+			}
 
 			m_shared_normal_texture = Texture::CreateTexture2DFromMemory(
 				pixels,
 				3,
 				3,
-                TextureFormat::R8G8B8A8,
-                FilterMode::Nearest,
-                SamplerAddressMode::ClampToEdge,
-				false,
+				TextureFormat::R8G8B8A8,
+				FilterMode::Nearest,
+				SamplerAddressMode::ClampToEdge,
 				false);
 		}
-		
+
 		return m_shared_normal_texture;
 	}
 
-	Ref<Texture> Texture::GetSharedCubemap()
+	const Ref<Texture>& Texture::GetSharedCubemap()
 	{
 		if (!m_shared_cubemap)
 		{
@@ -512,380 +155,490 @@ namespace Viry3D
 			pixels[3] = 255;
 
 			Ref<Texture> cubemap = Texture::CreateCubemap(
-                1,
-                TextureFormat::R8G8B8A8,
-                FilterMode::Nearest,
-                SamplerAddressMode::ClampToEdge,
-                false);
-			for (int i = 0; i < 6; ++i)
-			{
-				cubemap->UpdateCubemap(pixels, (CubemapFace) i, 0);
-			}
+				1,
+				TextureFormat::R8G8B8A8,
+				FilterMode::Nearest,
+				SamplerAddressMode::ClampToEdge,
+				false);
+			cubemap->UpdateCubemap(pixels, 0, { 0, 0, 0, 0, 0, 0 });
 			m_shared_cubemap = cubemap;
 		}
-		
+
 		return m_shared_cubemap;
 	}
 
-	void Texture::Done()
+	Ref<Texture> Texture::LoadTexture2DFromFile(
+		const String& path,
+		FilterMode filter_mode,
+		SamplerAddressMode wrap_mode,
+		bool gen_mipmap)
 	{
-		m_shared_white_texture.reset();
-		m_shared_black_texture.reset();
-		m_shared_normal_texture.reset();
-		m_shared_cubemap.reset();
+		Ref<Texture> texture;
+
+		auto image = Image::LoadFromFile(path);
+		if (image)
+		{
+			TextureFormat format;
+
+			switch (image->format)
+			{
+				case ImageFormat::R8:
+					format = TextureFormat::R8;
+					break;
+				case ImageFormat::R8G8B8A8:
+					format = TextureFormat::R8G8B8A8;
+					break;
+				default:
+					format = TextureFormat::None;
+					break;
+			}
+
+			if (format != TextureFormat::None)
+			{
+				texture = Texture::CreateTexture2DFromMemory(
+					image->data,
+					image->width,
+					image->height,
+					format,
+					filter_mode,
+					wrap_mode,
+					gen_mipmap);
+			}
+		}
+
+		return texture;
 	}
 
-    void Texture::UpdateTexture2D(const ByteBuffer& pixels, int x, int y, int w, int h)
-    {
-        VkDevice device = Display::Instance()->GetDevice();
+	Ref<Texture> Texture::CreateTexture2DFromMemory(
+		const ByteBuffer& pixels,
+		int width,
+		int height,
+		TextureFormat format,
+		FilterMode filter_mode,
+		SamplerAddressMode wrap_mode,
+		bool gen_mipmap)
+	{
+		Ref<Texture> texture = Texture::CreateTexture2D(
+			width,
+			height,
+			format,
+			filter_mode,
+			wrap_mode,
+			gen_mipmap);
 
-        if (!m_image_buffer)
-        {
-            m_image_buffer = Display::Instance()->CreateBuffer(pixels.Bytes(), pixels.Size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-        }
-        else
-        {
-            Display::Instance()->UpdateBuffer(m_image_buffer, 0, pixels.Bytes(), pixels.Size());
-        }
+		texture->UpdateTexture(pixels, 0, 0, 0, 0, width, height);
 
-        this->CopyBufferToImageBegin();
-        this->CopyBufferToImage(m_image_buffer, x, y, w, h, 0, 0);
-        this->CopyBufferToImageEnd();
+		if (gen_mipmap)
+		{
+			texture->GenMipmaps();
+		}
 
-        if (!m_dynamic)
-        {
-            m_image_buffer->Destroy(device);
-            m_image_buffer.reset();
-        }
-    }
+		return texture;
+	}
 
-    void Texture::UpdateCubemap(const ByteBuffer& pixels, CubemapFace face, int level)
-    {
-        VkDevice device = Display::Instance()->GetDevice();
+	static filament::backend::TextureFormat GetTextureFormat(TextureFormat format)
+	{
+		switch (format)
+		{
+			case TextureFormat::R8:
+				return filament::backend::TextureFormat::R8;
+			case TextureFormat::R8G8B8A8:
+				return filament::backend::TextureFormat::RGBA8;
+			case TextureFormat::D16:
+				return filament::backend::TextureFormat::DEPTH16;
+			case TextureFormat::D24X8:
+				return filament::backend::TextureFormat::DEPTH24;
+			case TextureFormat::D24S8:
+				return filament::backend::TextureFormat::DEPTH24_STENCIL8;
+			case TextureFormat::D32:
+				return filament::backend::TextureFormat::DEPTH32F;
+			case TextureFormat::D32S8:
+				return filament::backend::TextureFormat::DEPTH32F_STENCIL8;
+			default:
+				assert(false);
+				break;
+		}
+		return filament::backend::TextureFormat::RGBA8;
+	}
 
-        if (!m_image_buffer || m_image_buffer->GetSize() < pixels.Size())
-        {
-            m_image_buffer = Display::Instance()->CreateBuffer(pixels.Bytes(), pixels.Size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-        }
-        else
-        {
-            Display::Instance()->UpdateBuffer(m_image_buffer, 0, pixels.Bytes(), pixels.Size());
-        }
+	static filament::backend::PixelDataFormat GetPixelDataFormat(TextureFormat format)
+	{
+		switch (format)
+		{
+			case TextureFormat::R8G8B8A8:
+				return filament::backend::PixelDataFormat::RGBA;
+			default:
+				assert(false);
+				break;
+		}
+		return filament::backend::PixelDataFormat::RGBA;
+	}
 
-        this->CopyBufferToImageBegin();
-        this->CopyBufferToImage(m_image_buffer, 0, 0, m_width >> level, m_height >> level, (int) face, level);
-        this->CopyBufferToImageEnd();
+	static filament::backend::PixelDataType GetPixelDataType(TextureFormat format)
+	{
+		switch (format)
+		{
+			case TextureFormat::R8G8B8A8:
+				return filament::backend::PixelDataType::UBYTE;
+			default:
+				assert(false);
+				break;
+		}
+		return filament::backend::PixelDataType::UBYTE;
+	}
 
-        if (!m_dynamic)
-        {
-            m_image_buffer->Destroy(device);
-            m_image_buffer.reset();
-        }
-    }
+	Ref<Texture> Texture::CreateTexture2D(
+		int width,
+		int height,
+		TextureFormat format,
+		FilterMode filter_mode,
+		SamplerAddressMode wrap_mode,
+		bool mipmap)
+	{
+		Ref<Texture> texture;
 
-    void Texture::UpdateTexture2DArray(const ByteBuffer& pixels, int layer, int level)
-    {
-        VkDevice device = Display::Instance()->GetDevice();
+		int mipmap_level_count = 1;
+		if (mipmap)
+		{
+			mipmap_level_count = (int) floor(Mathf::Log2((float) Mathf::Max(width, height))) + 1;
+		}
 
-        if (!m_image_buffer || m_image_buffer->GetSize() < pixels.Size())
-        {
-            m_image_buffer = Display::Instance()->CreateBuffer(pixels.Bytes(), pixels.Size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
-        }
-        else
-        {
-            Display::Instance()->UpdateBuffer(m_image_buffer, 0, pixels.Bytes(), pixels.Size());
-        }
+		auto& driver = Engine::Instance()->GetDriverApi();
 
-        this->CopyBufferToImageBegin();
-        this->CopyBufferToImage(m_image_buffer, 0, 0, m_width >> level, m_height >> level, layer, level);
-        this->CopyBufferToImageEnd();
+		texture = Ref<Texture>(new Texture());
+		texture->m_width = width;
+		texture->m_height = height;
+		texture->m_mipmap_level_count = mipmap_level_count;
+		texture->m_array_size = 1;
+		texture->m_cubemap = false;
+		texture->m_format = format;
+		texture->m_filter_mode = filter_mode;
+		texture->m_wrap_mode = wrap_mode;
+		texture->m_texture = driver.createTexture(
+			filament::backend::SamplerType::SAMPLER_2D,
+			texture->m_mipmap_level_count,
+			GetTextureFormat(texture->m_format),
+			1,
+			texture->m_width,
+			texture->m_height,
+			1,
+			filament::backend::TextureUsage::DEFAULT);
 
-        if (!m_dynamic)
-        {
-            m_image_buffer->Destroy(device);
-            m_image_buffer.reset();
-        }
-    }
+		texture->UpdateSampler(false);
 
-    void Texture::CopyTexture(
-        const Ref<Texture>& src_texture,
-        int src_layer, int src_level,
-        int src_x, int src_y,
-        int layer, int level,
-        int x, int y,
-        int w, int h)
-    {
-        Display::Instance()->BeginImageCmd();
+		return texture;
+	}
 
-        Display::Instance()->SetImageLayout(
-            src_texture->GetImage(),
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) src_level, 1, (uint32_t) src_layer, 1 },
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            (VkAccessFlagBits) 0);
+	Ref<Texture> Texture::CreateCubemap(
+		int size,
+		TextureFormat format,
+		FilterMode filter_mode,
+		SamplerAddressMode wrap_mode,
+		bool mipmap)
+	{
+		Ref<Texture> texture;
 
-        Display::Instance()->SetImageLayout(
-            m_image,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) level, 1, (uint32_t) layer, 1 },
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            (VkAccessFlagBits) 0);
+		int mipmap_level_count = 1;
+		if (mipmap)
+		{
+			mipmap_level_count = (int) floor(Mathf::Log2((float) Mathf::Max(size, size))) + 1;
+		}
 
-        VkImageCopy copy;
-        Memory::Zero(&copy, sizeof(copy));
-        copy.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) src_level, (uint32_t) src_layer, 1 };
-        copy.srcOffset = { src_x, src_y, 0 };
-        copy.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) level, (uint32_t) layer, 1 };
-        copy.dstOffset = { x, y, 0 };
-        copy.extent = { (uint32_t) w, (uint32_t) h, 1 };
+		auto& driver = Engine::Instance()->GetDriverApi();
 
-        vkCmdCopyImage(
-            Display::Instance()->GetImageCmd(),
-            src_texture->GetImage(),
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            m_image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1,
-            &copy);
+		texture = Ref<Texture>(new Texture());
+		texture->m_width = size;
+		texture->m_height = size;
+		texture->m_mipmap_level_count = mipmap_level_count;
+		texture->m_array_size = 1;
+		texture->m_cubemap = true;
+		texture->m_format = format;
+		texture->m_filter_mode = filter_mode;
+		texture->m_wrap_mode = wrap_mode;
+		texture->m_texture = driver.createTexture(
+			filament::backend::SamplerType::SAMPLER_CUBEMAP,
+			texture->m_mipmap_level_count,
+			GetTextureFormat(texture->m_format),
+			1,
+			texture->m_width,
+			texture->m_height,
+			1,
+			filament::backend::TextureUsage::DEFAULT);
 
-        Display::Instance()->SetImageLayout(
-            src_texture->GetImage(),
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) src_level, 1, (uint32_t) src_layer, 1 },
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_ACCESS_TRANSFER_READ_BIT);
+		texture->UpdateSampler(false);
 
-        Display::Instance()->SetImageLayout(
-            m_image,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) level, 1, (uint32_t) layer, 1 },
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_ACCESS_TRANSFER_WRITE_BIT);
+		return texture;
+	}
 
-        Display::Instance()->EndImageCmd();
-    }
+	Ref<Texture> Texture::CreateRenderTexture(
+		int width,
+		int height,
+		TextureFormat format,
+		FilterMode filter_mode,
+		SamplerAddressMode wrap_mode)
+	{
+		Ref<Texture> texture;
 
-    void Texture::CopyToMemory(ByteBuffer& pixels, int layer, int level)
-    {
-        Ref<BufferObject> copy_buffer = Display::Instance()->CreateBuffer(nullptr, m_width * m_height * 4, VK_BUFFER_USAGE_TRANSFER_DST_BIT);
+		int mipmap_level_count = 1;
 
-        Display::Instance()->BeginImageCmd();
+		auto& driver = Engine::Instance()->GetDriverApi();
 
-        Display::Instance()->SetImageLayout(
-            m_image,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) level, 1, (uint32_t) layer, 1 },
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            (VkAccessFlagBits) 0);
+		filament::backend::TextureUsage usage = filament::backend::TextureUsage::SAMPLEABLE;
+		bool depth = false;
 
-        VkBufferImageCopy copy;
-        Memory::Zero(&copy, sizeof(copy));
-        copy.bufferOffset = 0;
-        copy.bufferRowLength = 0;
-        copy.bufferImageHeight = 0;
-        copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) level, (uint32_t) layer, 1 };
-        copy.imageOffset = { 0, 0, 0 };
-        copy.imageExtent = { (uint32_t) m_width, (uint32_t) m_height, 1 };
+		switch (format)
+		{
+			case TextureFormat::R8:
+			case TextureFormat::R8G8:
+			case TextureFormat::R8G8B8A8:
+			case TextureFormat::R16G16B16A16F:
+				usage |= filament::backend::TextureUsage::COLOR_ATTACHMENT;
+				break;
+			case TextureFormat::D16:
+			case TextureFormat::D24X8:
+			case TextureFormat::D32:
+				usage |= filament::backend::TextureUsage::DEPTH_ATTACHMENT;
+				depth = true;
+				break;
+			case TextureFormat::D24S8:
+			case TextureFormat::D32S8:
+				usage |= filament::backend::TextureUsage::DEPTH_ATTACHMENT;
+				usage |= filament::backend::TextureUsage::STENCIL_ATTACHMENT;
+				depth = true;
+				break;
+			case TextureFormat::S8:
+				usage |= filament::backend::TextureUsage::STENCIL_ATTACHMENT;
+				usage &= ~filament::backend::TextureUsage::SAMPLEABLE;
+				break;
+			default:
+				assert(false);
+				break;
+		}
 
-        vkCmdCopyImageToBuffer(
-            Display::Instance()->GetImageCmd(),
-            m_image,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            copy_buffer->GetBuffer(),
-            1,
-            &copy);
+		texture = Ref<Texture>(new Texture());
+		texture->m_width = width;
+		texture->m_height = height;
+		texture->m_mipmap_level_count = mipmap_level_count;
+		texture->m_array_size = 1;
+		texture->m_cubemap = false;
+		texture->m_format = format;
+		texture->m_filter_mode = filter_mode;
+		texture->m_wrap_mode = wrap_mode;
+		texture->m_texture = driver.createTexture(
+			filament::backend::SamplerType::SAMPLER_2D,
+			texture->m_mipmap_level_count,
+			GetTextureFormat(texture->m_format),
+			1,
+			texture->m_width,
+			texture->m_height,
+			1,
+			usage);
 
-        Display::Instance()->SetImageLayout(
-            m_image,
-            VK_PIPELINE_STAGE_TRANSFER_BIT,
-            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) level, 1, (uint32_t) layer, 1 },
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_ACCESS_TRANSFER_READ_BIT);
+		texture->UpdateSampler(depth);
 
-        Display::Instance()->EndImageCmd();
+		return texture;
+	}
 
-        Display::Instance()->ReadBuffer(copy_buffer, pixels);
+	TextureFormat Texture::SelectFormat(const Vector<TextureFormat>& formats, bool render_texture)
+	{
+		auto& driver = Engine::Instance()->GetDriverApi();
+		for (int i = 0; i < formats.Size(); ++i)
+		{
+			if (render_texture)
+			{
+				if (driver.isRenderTargetFormatSupported(GetTextureFormat(formats[i])))
+				{
+					return formats[i];
+				}
+			}
+			else
+			{
+				if (driver.isTextureFormatSupported(GetTextureFormat(formats[i])))
+				{
+					return formats[i];
+				}
+			}
 
-        copy_buffer->Destroy(Display::Instance()->GetDevice());
-        copy_buffer.reset();
-    }
+		}
 
-    void Texture::CopyBufferToImageBegin()
-    {
-        Display::Instance()->BeginImageCmd();
+		return TextureFormat::None;
+	}
 
-        Display::Instance()->SetImageLayout(
-            m_image,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-            { VK_IMAGE_ASPECT_COLOR_BIT, 0, (uint32_t) m_mipmap_level_count, 0, (uint32_t) this->GetLayerCount() },
-            VK_IMAGE_LAYOUT_UNDEFINED,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            (VkAccessFlagBits) 0);
-    }
-    
-    void Texture::CopyBufferToImage(const Ref<BufferObject>& image_buffer, int x, int y, int w, int h, int layer, int level)
-    {
-        VkBufferImageCopy copy;
-        Memory::Zero(&copy, sizeof(copy));
-        copy.bufferOffset = 0;
-        copy.bufferRowLength = 0;
-        copy.bufferImageHeight = 0;
-        copy.imageSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) level, (uint32_t) layer, 1 };
-        copy.imageOffset = { x, y, 0 };
-        copy.imageExtent = { (uint32_t) w, (uint32_t) h, 1 };
+	TextureFormat Texture::SelectDepthFormat()
+	{
+		return Texture::SelectFormat({ TextureFormat::D24X8, TextureFormat::D24S8, TextureFormat::D32, TextureFormat::D32S8, TextureFormat::D16 }, true);
+	}
 
-        vkCmdCopyBufferToImage(
-            Display::Instance()->GetImageCmd(),
-            image_buffer->GetBuffer(),
-            m_image,
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            1,
-            &copy);
-    }
+	Texture::Texture():
+		m_width(0),
+		m_height(0),
+		m_mipmap_level_count(0),
+		m_array_size(0),
+		m_cubemap(false),
+		m_format(TextureFormat::None),
+		m_filter_mode(FilterMode::None),
+		m_wrap_mode(SamplerAddressMode::None)
+	{
 
-    void Texture::CopyBufferToImageEnd()
-    {
-        Display::Instance()->SetImageLayout(
-            m_image,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            { VK_IMAGE_ASPECT_COLOR_BIT, 0, (uint32_t) m_mipmap_level_count, 0, (uint32_t) this->GetLayerCount() },
-            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_ACCESS_TRANSFER_WRITE_BIT);
+	}
 
-        Display::Instance()->EndImageCmd();
-    }
+	Texture::~Texture()
+	{
+		auto& driver = Engine::Instance()->GetDriverApi();
 
-    int Texture::GetLayerCount()
-    {
-        int layer_count = 1;
-        if (m_cubemap)
-        {
-            layer_count = 6;
-        }
-        if (m_array_size > 1)
-        {
-            layer_count = m_array_size;
-        }
-        return layer_count;
-    }
+		driver.destroyTexture(m_texture);
+		m_texture.clear();
+	}
 
-    void Texture::GenMipmaps()
-    {
-        assert(m_mipmap_level_count > 1);
+	void Texture::UpdateCubemap(const ByteBuffer& pixels, int level, const Vector<int>& face_offsets)
+	{
+		auto& driver = Engine::Instance()->GetDriverApi();
 
-        uint32_t layer_count = (uint32_t) this->GetLayerCount();
+		filament::backend::FaceOffsets offsets;
+		for (int i = 0; i < 6; ++i)
+		{
+			offsets.offsets[i] = face_offsets[i];
+		}
 
-        Display::Instance()->BeginImageCmd();
+		void* buffer = Memory::Alloc<void>(pixels.Size());
+		Memory::Copy(buffer, pixels.Bytes(), pixels.Size());
+		auto data = filament::backend::PixelBufferDescriptor(
+			buffer,
+			pixels.Size(),
+			GetPixelDataFormat(m_format),
+			GetPixelDataType(m_format),
+			FreeBufferCallback);
+		driver.updateCubeImage(m_texture, level, std::move(data), offsets);
+	}
 
-        Display::Instance()->SetImageLayout(
-            m_image,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-            { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, layer_count },
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_ACCESS_SHADER_READ_BIT);
+	void Texture::UpdateTexture(const ByteBuffer& pixels, int layer, int level, int x, int y, int w, int h)
+	{
+		auto& driver = Engine::Instance()->GetDriverApi();
 
-        for (int i = 1; i < m_mipmap_level_count; ++i)
-        {
-            VkImageBlit blit;
-            Memory::Zero(&blit, sizeof(blit));
-            blit.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) (i - 1), 0, layer_count };
-            blit.srcOffsets[1].x = Mathf::Max(1, m_width >> (i - 1));
-            blit.srcOffsets[1].y = Mathf::Max(1, m_height >> (i - 1));
-            blit.srcOffsets[1].z = 1;
+		void* buffer = Memory::Alloc<void>(pixels.Size());
+		Memory::Copy(buffer, pixels.Bytes(), pixels.Size());
+		auto data = filament::backend::PixelBufferDescriptor(
+			buffer,
+			pixels.Size(),
+			GetPixelDataFormat(m_format),
+			GetPixelDataType(m_format),
+			FreeBufferCallback);
+		driver.updateTexture(m_texture, layer, level, x, y, w, h, std::move(data));
+	}
 
-            blit.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) i, 0, layer_count };
-            blit.dstOffsets[1].x = Mathf::Max(1, m_width >> i);
-            blit.dstOffsets[1].y = Mathf::Max(1, m_height >> i);
-            blit.dstOffsets[1].z = 1;
+	void Texture::CopyTexture(
+		int dst_layer, int dst_level,
+		int dst_x, int dst_y,
+		int dst_w, int dst_h,
+		const Ref<Texture>& src,
+		int src_layer, int src_level,
+		int src_x, int src_y,
+		int src_w, int src_h,
+		FilterMode blit_filter)
+	{
+		auto& driver = Engine::Instance()->GetDriverApi();
 
-            Display::Instance()->SetImageLayout(
-                m_image,
-				VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-				VK_PIPELINE_STAGE_TRANSFER_BIT,
-                { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) i, 1, 0, layer_count },
-                VK_IMAGE_LAYOUT_UNDEFINED,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                (VkAccessFlagBits) 0);
+		driver.copyTexture(
+			m_texture, dst_layer, dst_level,
+			filament::backend::Offset3D({ dst_x, dst_y, 0 }),
+			filament::backend::Offset3D({ dst_w, dst_h, 1 }),
+			src->m_texture, src_layer, src_level,
+			filament::backend::Offset3D({ src_x, src_y, 0 }),
+			filament::backend::Offset3D({ src_w, src_h, 1 }),
+			blit_filter == FilterMode::Linear ? filament::backend::SamplerMagFilter::LINEAR : filament::backend::SamplerMagFilter::NEAREST);
+	}
 
-            vkCmdBlitImage(
-                Display::Instance()->GetImageCmd(),
-                m_image,
-                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                m_image,
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                1,
-                &blit,
-                VK_FILTER_LINEAR);
+	void Texture::CopyToMemory(
+		ByteBuffer& pixels,
+		int layer, int level,
+		int x, int y,
+		int w, int h,
+		std::function<void(const ByteBuffer&)> on_complete)
+	{
+		auto& driver = Engine::Instance()->GetDriverApi();
 
-            Display::Instance()->SetImageLayout(
-                m_image,
-				VK_PIPELINE_STAGE_TRANSFER_BIT,
-				VK_PIPELINE_STAGE_TRANSFER_BIT,
-                { VK_IMAGE_ASPECT_COLOR_BIT, (uint32_t) i, 1, 0, layer_count },
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                VK_ACCESS_TRANSFER_WRITE_BIT);
-        }
+		auto data = filament::backend::PixelBufferDescriptor(
+			pixels.Bytes(),
+			pixels.Size(),
+			GetPixelDataFormat(m_format),
+			GetPixelDataType(m_format));
+		driver.copyTextureToMemory(
+			m_texture,
+			layer, level,
+			filament::backend::Offset3D({ x, y, 0 }),
+			filament::backend::Offset3D({ w, h, 1 }),
+			std::move(data),
+			[=](const filament::backend::PixelBufferDescriptor&) {
+				if (on_complete)
+				{
+					on_complete(pixels);
+				}
+			});
+	}
 
-        Display::Instance()->SetImageLayout(
-            m_image,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-            { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, layer_count },
-            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-            VK_ACCESS_TRANSFER_READ_BIT);
+	void Texture::GenMipmaps()
+	{
+		auto& driver = Engine::Instance()->GetDriverApi();
 
-        Display::Instance()->EndImageCmd();
-    }
+		if (driver.canGenerateMipmaps())
+		{
+			driver.generateMipmaps(m_texture);
+		}
+	}
 
-    Texture::Texture():
-        m_width(0),
-        m_height(0),
-        m_format(VK_FORMAT_UNDEFINED),
-        m_image(VK_NULL_HANDLE),
-        m_image_view(VK_NULL_HANDLE),
-        m_memory(VK_NULL_HANDLE),
-        m_sampler(VK_NULL_HANDLE),
-        m_mipmap_level_count(1),
-        m_dynamic(false),
-        m_cubemap(false)
-    {
-        Memory::Zero(&m_memory_info, sizeof(m_memory_info));
-    }
+	void Texture::UpdateSampler(bool depth)
+	{
+		switch (m_filter_mode)
+		{
+			case FilterMode::None:
+			case FilterMode::Nearest:
+				if (m_mipmap_level_count > 1)
+				{
+					m_sampler.filterMin = filament::backend::SamplerMinFilter::NEAREST_MIPMAP_NEAREST;
+				}
+				else
+				{
+					m_sampler.filterMin = filament::backend::SamplerMinFilter::NEAREST;
+				}
+				m_sampler.filterMag = filament::backend::SamplerMagFilter::NEAREST;
+				break;
+			case FilterMode::Linear:
+			case FilterMode::Trilinear:
+				if (m_mipmap_level_count > 1)
+				{
+					m_sampler.filterMin = filament::backend::SamplerMinFilter::LINEAR_MIPMAP_LINEAR;
+				}
+				else
+				{
+					m_sampler.filterMin = filament::backend::SamplerMinFilter::LINEAR;
+				}
+				m_sampler.filterMag = filament::backend::SamplerMagFilter::LINEAR;
+				break;
+			default:
+				break;
+		}
 
-    Texture::~Texture()
-    {
-        VkDevice device = Display::Instance()->GetDevice();
+		switch (m_wrap_mode)
+		{
+			case SamplerAddressMode::None:
+			case SamplerAddressMode::ClampToEdge:
+				m_sampler.wrapS = filament::backend::SamplerWrapMode::CLAMP_TO_EDGE;
+				m_sampler.wrapT = filament::backend::SamplerWrapMode::CLAMP_TO_EDGE;
+				m_sampler.wrapR = filament::backend::SamplerWrapMode::CLAMP_TO_EDGE;
+				break;
+			case SamplerAddressMode::Repeat:
+				m_sampler.wrapS = filament::backend::SamplerWrapMode::REPEAT;
+				m_sampler.wrapT = filament::backend::SamplerWrapMode::REPEAT;
+				m_sampler.wrapR = filament::backend::SamplerWrapMode::REPEAT;
+				break;
+			case SamplerAddressMode::Mirror:
+			case SamplerAddressMode::MirrorOnce:
+				m_sampler.wrapS = filament::backend::SamplerWrapMode::MIRRORED_REPEAT;
+				m_sampler.wrapT = filament::backend::SamplerWrapMode::MIRRORED_REPEAT;
+				m_sampler.wrapR = filament::backend::SamplerWrapMode::MIRRORED_REPEAT;
+				break;
+		}
 
-        if (m_image_buffer)
-        {
-            m_image_buffer->Destroy(device);
-            m_image_buffer.reset();
-        }
-        if (m_sampler)
-        {
-            vkDestroySampler(device, m_sampler, nullptr);
-        }
-        vkDestroyImage(device, m_image, nullptr);
-        vkDestroyImageView(device, m_image_view, nullptr);
-        vkFreeMemory(device, m_memory, nullptr);
-    }
+		m_sampler.depthStencil = depth;
+	}
 }

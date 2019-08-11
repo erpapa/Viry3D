@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@
 #include "container/Vector.h"
 #include "container/List.h"
 #include "memory/Ref.h"
+#include "Action.h"
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -28,26 +29,22 @@ namespace Viry3D
 {
 	typedef std::mutex Mutex;
 
+    class Object;
+
 	class Thread
 	{
 	public:
-        class Res
-        {
-        public:
-            virtual ~Res() { }
-        };
-
 		struct Task
 		{
-            typedef std::function<Ref<Res>()> Job;
-            typedef std::function<void(const Ref<Res>&)> CompleteCallback;
+            typedef std::function<Ref<Object>()> Job;
+            typedef std::function<void(const Ref<Object>&)> CompleteCallback;
 
 			Job job;
             CompleteCallback complete;
 		};
 
 		static void Sleep(int ms);
-		Thread();
+        Thread(Action init, Action done);
 		~Thread();
         void Wait();
         int GetQueueLength();
@@ -61,12 +58,14 @@ namespace Viry3D
         Mutex m_mutex;
 		std::condition_variable m_condition;
 		bool m_close;
+        Action m_init_action;
+        Action m_done_action;
 	};
 
 	class ThreadPool
 	{
 	public:
-		ThreadPool(int thread_count);
+		ThreadPool(int thread_count, Action init = nullptr, Action done = nullptr);
 		void WaitAll();
 		int GetThreadCount() const { return m_threads.Size(); }
         void AddTask(const Thread::Task& task, int thread_index = -1);

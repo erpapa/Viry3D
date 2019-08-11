@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@ namespace Viry3D
 	public:
 		static bool Exist(const String& path);
 		static ByteBuffer ReadAllBytes(const String& path);
-		static void WriteAllBytes(const String& path, const ByteBuffer& buffer);
+		static bool WriteAllBytes(const String& path, const ByteBuffer& buffer);
 		static String ReadAllText(const String& path);
-		static void WriteAllText(const String& path, const String& text);
+		static bool WriteAllText(const String& path, const String& text);
         static void Delete(const String& path);
 		static void Unzip(const String& path, const String& source, const String& dest, bool directory);
 	};

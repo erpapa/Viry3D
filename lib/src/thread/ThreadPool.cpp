@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,7 +16,8 @@
 */
 
 #include "ThreadPool.h"
-#include "Application.h"
+#include "Object.h"
+#include "Engine.h"
 
 namespace Viry3D
 {
@@ -25,7 +26,9 @@ namespace Viry3D
 		std::this_thread::sleep_for(std::chrono::milliseconds(ms));
 	}
 
-	Thread::Thread()
+	Thread::Thread(Action init, Action done):
+        m_init_action(init),
+        m_done_action(done)
 	{
 		m_close = false;
         m_thread = RefMake<std::thread>(&Thread::Run, this);
@@ -70,6 +73,11 @@ namespace Viry3D
 
     void Thread::Run()
     {
+        if (m_init_action)
+        {
+            m_init_action();
+        }
+
         while (true)
         {
             Task task;
@@ -92,11 +100,11 @@ namespace Viry3D
 
             if (task.job)
             {
-                Ref<Res> res = task.job();
+                Ref<Object> res = task.job();
 
                 if (task.complete)
                 {
-                    Application::Instance()->PostEvent([=]() {
+                    Engine::Instance()->PostAction([=]() {
                         task.complete(res);
                     });
                 }
@@ -108,14 +116,19 @@ namespace Viry3D
                 m_condition.notify_one();
             }
         }
+
+        if (m_done_action)
+        {
+            m_done_action();
+        }
     }
 
-	ThreadPool::ThreadPool(int thread_count)
+	ThreadPool::ThreadPool(int thread_count, Action init, Action done)
 	{
 		m_threads.Resize(thread_count);
 		for (int i = 0; i < m_threads.Size(); ++i)
 		{
-			m_threads[i] = RefMake<Thread>();
+			m_threads[i] = RefMake<Thread>(init, done);
 		}
 	}
 

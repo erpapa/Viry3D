@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,13 +19,13 @@
 #include "View.h"
 #include "Debug.h"
 #include "Input.h"
+#include "Engine.h"
 #include "graphics/Mesh.h"
 #include "graphics/Shader.h"
 #include "graphics/Material.h"
 #include "graphics/Camera.h"
 #include "graphics/Material.h"
 #include "graphics/Texture.h"
-#include "graphics/BufferObject.h"
 #include "graphics/Image.h"
 #include "memory/Memory.h"
 #include "container/List.h"
@@ -35,9 +35,10 @@
 
 namespace Viry3D
 {
-	CanvasRenderer::CanvasRenderer():
+	CanvasRenderer::CanvasRenderer(FilterMode filter_mode):
 		m_canvas_dirty(true),
-        m_atlas_array_size(0)
+        m_atlas_array_size(0),
+        m_filter_mode(filter_mode)
 	{
 		this->CreateMaterial();
         this->NewAtlasTextureLayer();
@@ -51,12 +52,6 @@ namespace Viry3D
             delete m_atlas_tree[i];
         }
         m_atlas_tree.Clear();
-
-        if (m_draw_buffer)
-        {
-            m_draw_buffer->Destroy(Display::Instance()->GetDevice());
-            m_draw_buffer.reset();
-        }
 	}
 
     void CanvasRenderer::ReleaseAtlasTreeNode(AtlasTreeNode* node)
@@ -71,81 +66,8 @@ namespace Viry3D
 
     void CanvasRenderer::CreateMaterial()
     {
-        auto shader = Shader::Find("UI");
-        if (!shader)
-        {
-            String vs = R"(
-UniformBuffer(0, 0) uniform UniformBuffer00
-{
-	mat4 u_view_matrix;
-	mat4 u_projection_matrix;
-} buf_0_0;
-
-UniformBuffer(1, 0) uniform UniformBuffer10
-{
-	mat4 u_model_matrix;
-} buf_1_0;
-
-Input(0) vec4 a_pos;
-Input(1) vec4 a_color;
-Input(2) vec2 a_uv;
-Input(3) vec2 a_uv2;
-
-Output(0) vec3 v_uv;
-Output(1) vec4 v_color;
-
-void main()
-{
-	gl_Position = a_pos * buf_1_0.u_model_matrix * buf_0_0.u_view_matrix * buf_0_0.u_projection_matrix;
-	v_uv = vec3(a_uv, a_uv2.x);
-	v_color = a_color;
-
-	vulkan_convert();
-}
-)";
-            String fs = R"(
-precision highp float;
-precision lowp sampler2DArray;
-
-UniformTexture(0, 1) uniform sampler2DArray u_texture;
-
-UniformBuffer(0, 2) uniform UniformBuffer00
-{
-	vec4 u_color; 
-} buf_0_2;
-
-Input(0) vec3 v_uv;
-Input(1) vec4 v_color;
-
-Output(0) vec4 o_frag;
-
-void main()
-{
-    o_frag = texture(u_texture, v_uv) * v_color * buf_0_2.u_color;
-}
-)";
-            RenderState render_state;
-            render_state.cull = RenderState::Cull::Off;
-            render_state.zTest = RenderState::ZTest::Off;
-            render_state.zWrite = RenderState::ZWrite::Off;
-            render_state.blend = RenderState::Blend::On;
-            render_state.srcBlendMode = RenderState::BlendMode::SrcAlpha;
-            render_state.dstBlendMode = RenderState::BlendMode::OneMinusSrcAlpha;
-            render_state.queue = (int) RenderState::Queue::Transparent;
-
-            shader = RefMake<Shader>(
-                "",
-                Vector<String>(),
-                vs,
-                "",
-                Vector<String>(),
-                fs,
-                render_state);
-            Shader::AddCache("UI", shader);
-        }
-
-        auto material = RefMake<Material>(shader);
-        material->SetColor("u_color", Color(1, 1, 1, 1));
+        auto material = RefMake<Material>(Shader::Find("UI"));
+        material->SetColor(MaterialProperty::COLOR, Color(1, 1, 1, 1));
 
         this->SetMaterial(material);
     }
@@ -159,88 +81,44 @@ void main()
         {
             m_atlas_array_size = 1;
 
-            Vector<ByteBuffer> pixels(m_atlas_array_size, buffer);
-
-            m_atlas = Texture::CreateTexture2DArrayFromMemory(
-                pixels,
-                ATLAS_SIZE,
-                ATLAS_SIZE,
-                m_atlas_array_size,
-                TextureFormat::R8G8B8A8,
-                FilterMode::Linear,
-                SamplerAddressMode::ClampToEdge,
-                false,
-                true);
+			m_atlas = Texture::CreateTexture2DFromMemory(
+				buffer,
+				ATLAS_SIZE,
+				ATLAS_SIZE,
+				TextureFormat::R8G8B8A8,
+				m_filter_mode,
+				SamplerAddressMode::ClampToEdge,
+				false);
         }
         else
         {
-            int new_array_size = m_atlas_array_size + 1;
-
-            Vector<ByteBuffer> pixels(new_array_size, buffer);
-
-            Ref<Texture> new_atlas = Texture::CreateTexture2DArrayFromMemory(
-                pixels,
-                ATLAS_SIZE,
-                ATLAS_SIZE,
-                new_array_size,
-                TextureFormat::R8G8B8A8,
-                FilterMode::Linear,
-                SamplerAddressMode::ClampToEdge,
-                false,
-                true);
-
-            for (int i = 0; i < m_atlas_array_size; ++i)
-            {
-                new_atlas->CopyTexture(
-                    m_atlas,
-                    i, 0,
-                    0, 0,
-                    i, 0,
-                    0, 0,
-                    ATLAS_SIZE, ATLAS_SIZE);
-            }
-
-            m_atlas = new_atlas;
-            m_atlas_array_size = new_array_size;
+            assert(false);
         }
 
         AtlasTreeNode* layer = new AtlasTreeNode();
-        layer->x = 0;
-        layer->y = 0;
-        layer->w = ATLAS_SIZE;
-        layer->h = ATLAS_SIZE;
+        layer->rect.x = 0;
+        layer->rect.y = 0;
+        layer->rect.w = ATLAS_SIZE;
+        layer->rect.h = ATLAS_SIZE;
         layer->layer = m_atlas_tree.Size();
         m_atlas_tree.Add(layer);
 
-        this->GetMaterial()->SetTexture("u_texture", m_atlas);
+        const auto& materials = this->GetMaterials();
+        for (auto& i : materials)
+        {
+            i->SetTexture(MaterialProperty::TEXTURE, m_atlas);
+        }
     }
 
-	Ref<BufferObject> CanvasRenderer::GetVertexBuffer() const
+	void CanvasRenderer::Prepare()
 	{
-		Ref<BufferObject> buffer;
+		MeshRenderer::Prepare();
 
-		if (m_mesh)
-		{
-			buffer = m_mesh->GetVertexBuffer();
-		}
+        for (int i = 0; i < m_views.Size(); ++i)
+        {
+            m_views[i]->Update();
+        }
 
-		return buffer;
-	}
-
-	Ref<BufferObject> CanvasRenderer::GetIndexBuffer() const
-	{
-		Ref<BufferObject> buffer;
-
-		if (m_mesh)
-		{
-			buffer = m_mesh->GetIndexBuffer();
-		}
-
-		return buffer;
-	}
-
-	void CanvasRenderer::Update()
-	{
 		if (m_canvas_dirty)
 		{
 			m_canvas_dirty = false;
@@ -249,21 +127,36 @@ void main()
             this->GetCamera()->SetFarClip(1000);
             this->GetCamera()->SetOrthographic(true);
             this->GetCamera()->SetOrthographicSize(this->GetCamera()->GetTargetHeight() / 2.0f);
-            this->GetMaterial()->SetMatrix(PROJECTION_MATRIX, this->GetCamera()->GetProjectionMatrix());
+
+            // set custom projection matrix,
+            // make camera position in left top of view rect instead center,
+            // to avoid half pixel problem.
+            {
+                float view_width = this->GetCamera()->GetTargetWidth() * this->GetCamera()->GetViewportRect().w;
+                float view_height = this->GetCamera()->GetTargetHeight() * this->GetCamera()->GetViewportRect().h;
+
+                float top = 0;
+                float bottom = (float) -this->GetCamera()->GetTargetHeight();
+                float left = 0;
+                float right = (float) this->GetCamera()->GetTargetHeight() * view_width / view_height;
+                auto projection_matrix = Matrix4x4::Ortho(left, right, bottom, top, this->GetCamera()->GetNearClip(), this->GetCamera()->GetFarClip());
+                
+                this->GetCamera()->SetProjectionMatrixExternal(projection_matrix);
+            }
 
             this->UpdateCanvas();
 		}
 
-        Renderer::Update();
+		this->HandleTouchEvent();
 	}
-
-    void CanvasRenderer::OnFrameEnd()
-    {
-        this->HandleTouchEvent();
-    }
 
     void CanvasRenderer::OnResize(int width, int height)
     {
+        for (int i = 0; i < m_views.Size(); ++i)
+        {
+            m_views[i]->OnResize(width, height);
+        }
+
         this->MarkCanvasDirty();
     }
 
@@ -281,6 +174,15 @@ void main()
 		this->MarkCanvasDirty();
 	}
 
+    void CanvasRenderer::RemoveAllViews()
+    {
+        Vector<Ref<View>> views = m_views;
+        for (const auto& i : views)
+        {
+            this->RemoveView(i);
+        }
+    }
+
 	void CanvasRenderer::MarkCanvasDirty()
 	{
 		m_canvas_dirty = true;
@@ -293,7 +195,7 @@ void main()
         for (int i = 0; i < m_views.Size(); ++i)
         {
             m_views[i]->UpdateLayout();
-            m_views[i]->FillMeshes(m_view_meshes);
+            m_views[i]->FillMeshes(m_view_meshes, Rect(0, 0, 1, 1));
         }
 
         List<ViewMesh*> mesh_list;
@@ -304,27 +206,27 @@ void main()
         }
 
         mesh_list.Sort([](const ViewMesh* a, const ViewMesh* b) {
-            if (!a->texture && b->texture)
+            if (!a->HasTextureOrImage() && b->HasTextureOrImage())
             {
                 return true;
             }
-            else if (a->texture && !b->texture)
+            else if (a->HasTextureOrImage() && !b->HasTextureOrImage())
             {
                 return false;
             }
-            else if (!a->texture && !b->texture)
+            else if (!a->HasTextureOrImage() && !b->HasTextureOrImage())
             {
                 return false;
             }
             else
             {
-                if (a->texture->GetWidth() == b->texture->GetWidth())
+                if (a->GetTextureOrImageWidth() == b->GetTextureOrImageWidth())
                 {
-                    return a->texture->GetHeight() > b->texture->GetHeight();
+                    return a->GetTextureOrImageHeight() > b->GetTextureOrImageHeight();
                 }
                 else
                 {
-                    return a->texture->GetWidth() > b->texture->GetWidth();
+                    return a->GetTextureOrImageWidth() > b->GetTextureOrImageWidth();
                 }
             }
         });
@@ -332,7 +234,7 @@ void main()
         bool atlas_updated = false;
         for (auto i : mesh_list)
         {
-            if (i->texture)
+            if (i->texture || i->image)
             {
                 bool updated;
                 this->UpdateAtlas(*i, updated);
@@ -344,14 +246,30 @@ void main()
             }
         }
 
-        Vector<Vertex> vertices;
-        Vector<unsigned short> indices;
-
+        Vector<Mesh::Submesh> submeshes;
+        Vector<Rect> clip_rects;
+        Vector<Mesh::Vertex> vertices;
+        Vector<unsigned int> indices;
+        
         for (const auto& i : m_view_meshes)
         {
-            if (i.vertices.Size() > 0 && i.indices.Size() > 0 && i.texture)
+            if (i.vertices.Size() > 0 && i.indices.Size() > 0 && (i.texture || i.image))
             {
                 int index_offset = vertices.Size();
+
+                if (clip_rects.Size() == 0 || i.clip_rect != clip_rects[clip_rects.Size() - 1])
+                {
+                    clip_rects.Add(i.clip_rect);
+
+                    Mesh::Submesh submesh;
+                    submesh.index_first = indices.Size();
+                    submesh.index_count = i.indices.Size();
+                    submeshes.Add(submesh);
+                }
+                else
+                {
+                    submeshes[submeshes.Size() - 1].index_count += i.indices.Size();
+                }
 
                 vertices.AddRange(i.vertices);
 
@@ -362,94 +280,87 @@ void main()
             }
         }
 
-        bool draw_buffer_dirty = false;
-
-        if (!m_mesh)
-        {
-            if (indices.Size() > 0)
-            {
-                draw_buffer_dirty = true;
-            }
-        }
-        else
-        {
-            if (indices.Size() != m_mesh->GetIndexCount())
-            {
-                draw_buffer_dirty = true;
-            }
-        }
-
+        auto mesh = this->GetMesh();
         if (vertices.Size() > 0 && indices.Size() > 0)
         {
-            if (!m_mesh || vertices.Size() > m_mesh->GetVertexCount() || indices.Size() > m_mesh->GetIndexCount())
+            if (!mesh || vertices.Size() > mesh->GetVertices().Size() || indices.Size() > mesh->GetIndices().Size())
             {
-                m_mesh = RefMake<Mesh>(vertices, indices);
-                this->MarkInstanceCmdDirty();
+                mesh = RefMake<Mesh>(std::move(vertices), std::move(indices), submeshes, false, true);
+                this->SetMesh(mesh);
             }
             else
             {
-                m_mesh->Update(vertices, indices);
+                mesh->Update(std::move(vertices), std::move(indices), submeshes);
             }
         }
         else
         {
-            m_mesh.reset();
+            if (mesh)
+            {
+                mesh.reset();
+                this->SetMesh(mesh);
+            }
         }
 
-        if (draw_buffer_dirty)
+        // update materials
+        if (this->GetMaterials().Size() != submeshes.Size())
         {
-            VkDrawIndexedIndirectCommand draw;
-            draw.indexCount = m_mesh->GetIndexCount();
-            draw.instanceCount = 1;
-            draw.firstIndex = 0;
-            draw.vertexOffset = 0;
-            draw.firstInstance = 0;
-
-            if (!m_draw_buffer)
+            Vector<Ref<Material>> materials(submeshes.Size());
+            for (int i = 0; i < materials.Size(); ++i)
             {
-                m_draw_buffer = Display::Instance()->CreateBuffer(&draw, sizeof(draw), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT);
+                materials[i] = RefMake<Material>(this->GetMaterial()->GetShader());
+                materials[i]->SetColor(MaterialProperty::COLOR, Color(1, 1, 1, 1));
+                materials[i]->SetTexture(MaterialProperty::TEXTURE, m_atlas);
+				materials[i]->SetScissorRect(clip_rects[i]);
+			}
+            if (materials.Size() > 0)
+            {
+                this->SetMaterials(materials);
             }
-            else
+        }
+        else
+        {
+            const auto& materials = this->GetMaterials();
+            for (int i = 0; i < materials.Size(); ++i)
             {
-                Display::Instance()->UpdateBuffer(m_draw_buffer, 0, &draw, sizeof(draw));
+                if (clip_rects[i] != materials[i]->GetScissorRect())
+                {
+					materials[i]->SetScissorRect(clip_rects[i]);
+                }
             }
         }
 
-        /*
+#if 0
         // test output atlas texture
         if (atlas_updated)
         {
-            ByteBuffer pixels;
-
-            if (m_atlas_array_size > 0)
-            {
-                m_atlas->CopyToMemory(pixels, 0, 0);
-                Image::EncodeToPNG("atlas0.png", pixels, ATLAS_SIZE, ATLAS_SIZE, 32);
-            }
-
-            if (m_atlas_array_size > 1)
-            {
-                m_atlas->CopyToMemory(pixels, 1, 0);
-                Image::EncodeToPNG("atlas1.png", pixels, ATLAS_SIZE, ATLAS_SIZE, 32);
-            }
-
-            if (m_atlas_array_size > 2)
-            {
-                m_atlas->CopyToMemory(pixels, 2, 0);
-                Image::EncodeToPNG("atlas2.png", pixels, ATLAS_SIZE, ATLAS_SIZE, 32);
-            }
+            ByteBuffer pixels(ATLAS_SIZE * ATLAS_SIZE * 4);
+            
+			m_atlas->CopyToMemory(pixels, 0, 0, 0, 0, ATLAS_SIZE, ATLAS_SIZE,
+				[](const ByteBuffer& buffer) {
+					auto image = RefMake<Image>();
+					image->width = ATLAS_SIZE;
+					image->height = ATLAS_SIZE;
+					image->format = ImageFormat::R8G8B8A8;
+					image->data = buffer;
+					image->EncodeToPNG(String::Format("%s/atlas.png", Engine::Instance()->GetSavePath().CString()));
+				});
         }
-        */
+#endif
     }
 
     void CanvasRenderer::UpdateAtlas(ViewMesh& mesh, bool& updated)
     {
-        assert(mesh.texture->GetWidth() <= ATLAS_SIZE - PADDING_SIZE && mesh.texture->GetHeight() <= ATLAS_SIZE - PADDING_SIZE);
+        int texture_width = mesh.GetTextureOrImageWidth();
+        int texture_height = mesh.GetTextureOrImageHeight();
+
+        assert(texture_width <= ATLAS_SIZE - PADDING_SIZE && texture_height <= ATLAS_SIZE - PADDING_SIZE);
 
         AtlasTreeNode* node = nullptr;
 
         AtlasTreeNode** node_ptr;
-        if (m_atlas_cache.TryGet(mesh.texture.get(), &node_ptr))
+        if ((mesh.texture && m_atlas_cache.TryGet(mesh.texture->GetId(), &node_ptr)) ||
+            (mesh.image && m_atlas_cache.TryGet(mesh.image->GetId(), &node_ptr)))
         {
             node = *node_ptr;
 
@@ -459,7 +370,7 @@ void main()
         {
             for (int i = 0; i < m_atlas_tree.Size(); ++i)
             {
-                node = this->FindAtlasTreeNodeToInsert(mesh.texture->GetWidth(), mesh.texture->GetHeight(), m_atlas_tree[i]);
+                node = this->FindAtlasTreeNodeToInsert(texture_width, texture_height, m_atlas_tree[i]);
                 if (node)
                 {
                     break;
@@ -470,50 +381,86 @@ void main()
             {
                 this->NewAtlasTextureLayer();
 
-                node = this->FindAtlasTreeNodeToInsert(mesh.texture->GetWidth(), mesh.texture->GetHeight(), m_atlas_tree[m_atlas_tree.Size() - 1]);
+                node = this->FindAtlasTreeNodeToInsert(texture_width, texture_height, m_atlas_tree[m_atlas_tree.Size() - 1]);
             }
 
             assert(node);
 
             // split node
             AtlasTreeNode* left = new AtlasTreeNode();
-            left->x = node->x + mesh.texture->GetWidth() + PADDING_SIZE;
-            left->y = node->y;
-            left->w = node->w - mesh.texture->GetWidth() - PADDING_SIZE;
-            left->h = mesh.texture->GetHeight();
-            left->layer = node->layer;
-
             AtlasTreeNode* right = new AtlasTreeNode();
-            right->x = node->x;
-            right->y = node->y + mesh.texture->GetHeight() + PADDING_SIZE;
-            right->w = node->w;
-            right->h = node->h - mesh.texture->GetHeight() - PADDING_SIZE;
-            right->layer = node->layer;
 
-            node->w = mesh.texture->GetWidth();
-            node->h = mesh.texture->GetHeight();
+            int remain_w = node->rect.w - texture_width - PADDING_SIZE;
+            int remain_h = node->rect.h - texture_height - PADDING_SIZE;
+
+            if (remain_w <= remain_h)
+            {
+                left->rect.x = node->rect.x + texture_width + PADDING_SIZE;
+                left->rect.y = node->rect.y;
+                left->rect.w = remain_w;
+                left->rect.h = texture_height;
+                left->layer = node->layer;
+
+                right->rect.x = node->rect.x;
+                right->rect.y = node->rect.y + texture_height + PADDING_SIZE;
+                right->rect.w = node->rect.w;
+                right->rect.h = remain_h;
+                right->layer = node->layer;
+            }
+            else
+            {
+                left->rect.x = node->rect.x;
+                left->rect.y = node->rect.y + texture_height + PADDING_SIZE;
+                left->rect.w = texture_width;
+                left->rect.h = remain_h;
+                left->layer = node->layer;
+
+                right->rect.x = node->rect.x + texture_width + PADDING_SIZE;
+                right->rect.y = node->rect.y;
+                right->rect.w = remain_w;
+                right->rect.h = node->rect.h;
+                right->layer = node->layer;
+            }
+
+            node->rect.w = texture_width;
+            node->rect.h = texture_height;
             node->children.Resize(2);
             node->children[0] = left;
             node->children[1] = right;
 
             // copy texture to atlas
-            m_atlas->CopyTexture(
-                mesh.texture,
-                0, 0,
-                0, 0,
-                node->layer, 0,
-                node->x, node->y,
-                node->w, node->h);
-
             // add cache
-            m_atlas_cache.Add(mesh.texture.get(), node);
+            if (mesh.texture)
+            {
+                m_atlas->CopyTexture(
+					node->layer, 0,
+					node->rect.x, node->rect.y,
+					node->rect.w, node->rect.h,
+                    mesh.texture,
+                    0, 0,
+                    0, 0,
+                    node->rect.w, node->rect.h,
+					FilterMode::None);
+
+                m_atlas_cache.Add(mesh.texture->GetId(), node);
+            }
+            else if (mesh.image)
+            {
+                m_atlas->UpdateTexture(
+                    mesh.image->data,
+					0, 0,
+                    node->rect.x, node->rect.y,
+                    node->rect.w, node->rect.h);
+
+                m_atlas_cache.Add(mesh.image->GetId(), node);
+            }
 
             updated = true;
         }
 
         // update uv
-        Vector2 uv_offset(node->x / (float) ATLAS_SIZE, node->y / (float) ATLAS_SIZE);
-        Vector2 uv_scale(node->w / (float) ATLAS_SIZE, node->h / (float) ATLAS_SIZE);
+        Vector2 uv_offset(node->rect.x / (float) ATLAS_SIZE, node->rect.y / (float) ATLAS_SIZE);
+        Vector2 uv_scale(node->rect.w / (float) ATLAS_SIZE, node->rect.h / (float) ATLAS_SIZE);
 
         for (int i = 0; i < mesh.vertices.Size(); ++i)
         {
@@ -527,7 +474,7 @@ void main()
     {
         if (node->children.Size() == 0)
         {
-            if (node->w - PADDING_SIZE >= w && node->h - PADDING_SIZE >= h)
+            if (node->rect.w - PADDING_SIZE >= w && node->rect.h - PADDING_SIZE >= h)
             {
                 return node;
             }
@@ -559,7 +506,7 @@ void main()
         }
     }
 
-    static bool IsPointInView(const Vector2& pos, const Vector<Vertex>& vertices)
+    static bool IsPointInView(const Vector2i& pos, const Vector<Mesh::Vertex>& vertices)
     {
         // ax + by + c = 0
         // a = y1 - y0
@@ -579,23 +526,29 @@ void main()
         lines[2] = Vector3(y3 - y2, x2 - x3, x3 * y2 - x2 * y3);
         lines[3] = Vector3(y0 - y3, x3 - x0, x0 * y3 - x3 * y0);
 
+        bool all_positive = true;
+        bool all_negative = true;
+
         for (int i = 0; i < 4; ++i)
         {
             float sign = lines[i].x * pos.x + lines[i].y * pos.y + lines[i].z;
-            if (sign > 0)
+            if (sign >= 0)
             {
-                return false;
+                all_negative = false;
+            }
+            if (sign <= 0)
+            {
+                all_positive = false;
             }
         }
 
-        return true;
+        return all_positive || all_negative;
     }
 
     void CanvasRenderer::HitViews(const Touch& t)
     {
-        Vector2 pos = t.position;
-        pos.x -= this->GetCamera()->GetTargetWidth() / 2;
-        pos.y -= this->GetCamera()->GetTargetHeight() / 2;
+        Vector2i pos = Vector2i((int) t.position.x, (int) t.position.y);
+        pos.y -= this->GetCamera()->GetTargetHeight();
 
         if (t.phase == TouchPhase::Began)
         {
@@ -619,7 +572,7 @@ void main()
                             m_touch_down_views.Add(t.fingerId, views);
                         }
 
-                        bool block_event = view->OnTouchDownInside();
+                        bool block_event = view->OnTouchDownInside(pos);
 
                         if (block_event)
                         {
@@ -636,7 +589,7 @@ void main()
             {
                 for (View* j : *touch_down_views_ptr)
                 {
-                    bool block_event = j->OnTouchDrag();
+                    bool block_event = j->OnTouchDrag(pos);
 
                     if (block_event)
                     {
@@ -653,7 +606,7 @@ void main()
                     {
                         View* view = m_view_meshes[i].view;
 
-                        bool block_event = view->OnTouchMoveInside();
+                        bool block_event = view->OnTouchMoveInside(pos);
 
                         if (block_event)
                         {
@@ -665,46 +618,33 @@ void main()
         }
         else if (t.phase == TouchPhase::Ended)
         {
-            List<View*>* touch_down_views_ptr = nullptr;
-            m_touch_down_views.TryGet(t.fingerId, &touch_down_views_ptr);
-
+            bool blocked = false;
             for (int i = m_view_meshes.Size() - 1; i >= 0; --i)
             {
                 if (m_view_meshes[i].base_view)
                 {
-                    if (IsPointInView(pos, m_view_meshes[i].vertices))
+                    View* view = m_view_meshes[i].view;
+
+                    if (!blocked)
                     {
-                        View* view = m_view_meshes[i].view;
-
-                        if (touch_down_views_ptr)
+                        if (IsPointInView(pos, m_view_meshes[i].vertices))
                         {
-                            touch_down_views_ptr->Remove(view);
-                        }
+                            bool block_event = view->OnTouchUpInside(pos);
 
-                        bool block_event = view->OnTouchUpInside();
-
-                        if (block_event)
-                        {
-                            break;
+                            if (block_event)
+                            {
+                                blocked = true;
+                            }
                         }
+                    }
+                    else
+                    {
+                        view->OnTouchUpOutside(pos);
                     }
                 }
             }
 
-            if (touch_down_views_ptr)
-            {
-                for (View* j : *touch_down_views_ptr)
-                {
-                    bool block_event = j->OnTouchUpOutside();
-
-                    if (block_event)
-                    {
-                        break;
-                    }
-                }
-
-                m_touch_down_views.Remove(t.fingerId);
-            }
+            m_touch_down_views.Remove(t.fingerId);
         }
     }
 }

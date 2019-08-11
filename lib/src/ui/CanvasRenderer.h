@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,41 +17,43 @@
 
 #pragma once
 
-#include "graphics/Renderer.h"
+#include "graphics/MeshRenderer.h"
+#include "graphics/Texture.h"
 #include "container/Vector.h"
 #include "container/Map.h"
+#include "math/Recti.h"
 #include "View.h"
 
 namespace Viry3D
 {
 	class View;
 	class Mesh;
+	class Camera;
     struct Touch;
 
     struct AtlasTreeNode
     {
-        int x;
-        int y;
-        int w;
-        int h;
+        Recti rect;
         int layer;
         Vector<AtlasTreeNode*> children;
     };
 
-    class CanvasRenderer : public Renderer
+    class CanvasRenderer : public MeshRenderer
 	{
 	public:
-		CanvasRenderer();
+		CanvasRenderer(FilterMode filter_mode);
 		virtual ~CanvasRenderer();
-		virtual Ref<BufferObject> GetVertexBuffer() const;
-		virtual Ref<BufferObject> GetIndexBuffer() const;
-        virtual Ref<BufferObject> GetDrawBuffer() const { return m_draw_buffer; }
-		virtual void Update();
-        virtual void OnFrameEnd();
-        virtual void OnResize(int width, int height);
 		void AddView(const Ref<View>& view);
 		void RemoveView(const Ref<View>& view);
+        void RemoveAllViews();
+        const Vector<Ref<View>>& GetViews() const { return m_views; }
 		void MarkCanvasDirty();
+		Ref<Camera> GetCamera() const { return m_camera.lock(); }
+		void SetCamera(const Ref<Camera>& camera) { m_camera = camera; }
+
+	protected:
+		virtual void Prepare();
+		virtual void OnResize(int width, int height);
 
 	private:
         void CreateMaterial();
@@ -66,13 +68,13 @@ namespace Viry3D
 	private:
 		Vector<Ref<View>> m_views;
 		bool m_canvas_dirty;
-		Ref<Mesh> m_mesh;
         Ref<Texture> m_atlas;
         int m_atlas_array_size;
         Vector<AtlasTreeNode*> m_atlas_tree;
-        Map<Texture*, AtlasTreeNode*> m_atlas_cache;
-        Ref<BufferObject> m_draw_buffer;
+        Map<int, AtlasTreeNode*> m_atlas_cache;
         Vector<ViewMesh> m_view_meshes;
         Map<int, List<View*>> m_touch_down_views;
+        FilterMode m_filter_mode;
+		WeakRef<Camera> m_camera;
 	};
 }

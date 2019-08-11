@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 
 #include "Directory.h"
 
-#if VR_WINDOWS
+#if VR_WINDOWS || VR_UWP
 #include <io.h>
 #include <Windows.h>
 #else
@@ -28,7 +28,7 @@
 
 namespace Viry3D
 {
-#if VR_WINDOWS
+#if VR_WINDOWS || VR_UWP
 	static Vector<String> GetDirFiles(const String& path, bool recursive, bool* exist, bool get_dirs_only = false)
 	{
 		Vector<String> files;
@@ -215,11 +215,11 @@ namespace Viry3D
 			folder = "/" + folder;
 		}
 
-		for (int i = 1; i < splits.Size(); i++)
+		for (int i = 1; i < splits.Size(); ++i)
 		{
 			folder += "/" + splits[i];
 
-#if VR_WINDOWS
+#if VR_WINDOWS || VR_UWP
 			CreateDirectoryA(folder.CString(), nullptr);
 #else
 			mkdir(folder.CString(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);

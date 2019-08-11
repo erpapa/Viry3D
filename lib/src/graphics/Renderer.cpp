@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,166 +16,116 @@
 */
 
 #include "Renderer.h"
-#include "Camera.h"
-#include "Material.h"
-#include "Debug.h"
+#include "Engine.h"
+#include "GameObject.h"
 
 namespace Viry3D
 {
-    Renderer::Renderer():
-		m_camera(nullptr),
-        m_model_matrix_dirty(true)
-    {
+    List<Renderer*> Renderer::m_renderers;
     
-    }
+	void Renderer::PrepareAll()
+	{
+		for (auto i : m_renderers)
+		{
+			i->Prepare();
+		}
+	}
 
+    Renderer::Renderer():
+		m_cast_shadow(false),
+		m_recieve_shadow(false),
+        m_lightmap_scale_offset(1, 1, 0, 0),
+        m_lightmap_index(-1)
+    {
+        m_renderers.AddLast(this);
+    }
+    
     Renderer::~Renderer()
     {
-    
-    }
+		auto& driver = Engine::Instance()->GetDriverApi();
 
+		if (m_transform_uniform_buffer)
+		{
+			driver.destroyUniformBuffer(m_transform_uniform_buffer);
+			m_transform_uniform_buffer.clear();
+		}
+
+        m_renderers.Remove(this);
+    }
+    
+    Ref<Material> Renderer::GetMaterial() const
+    {
+        Ref<Material> material;
+        
+        if (m_materials.Size() > 0)
+        {
+            material = m_materials[0];
+        }
+        
+        return material;
+    }
+    
     void Renderer::SetMaterial(const Ref<Material>& material)
     {
-        if (m_material)
-        {
-            m_material->OnUnSetRenderer(this);
-        }
-
-        m_material = material;
-        this->MarkRendererOrderDirty();
-
-        if (m_material)
-        {
-            m_material->OnSetRenderer(this);
-        }
-
-        this->MarkInstanceCmdDirty();
-
-        if (m_instance_material)
-        {
-            if (m_material)
-            {
-                Map<String, MaterialProperty> properties = m_instance_material->GetProperties();
-
-                m_instance_material = RefMake<Material>(m_material->GetShader());
-                for (const auto& i : properties)
-                {
-                    switch (i.second.type)
-                    {
-                        case MaterialProperty::Type::Matrix:
-                            m_instance_material->SetMatrix(i.second.name, *(Matrix4x4*) &i.second.data);
-                            break;
-                        case MaterialProperty::Type::Vector:
-                            m_instance_material->SetVector(i.second.name, *(Vector4*) &i.second.data);
-                            break;
-                        case MaterialProperty::Type::Color:
-                            m_instance_material->SetColor(i.second.name, *(Color*) &i.second.data);
-                            break;
-                        case MaterialProperty::Type::Float:
-                            m_instance_material->SetFloat(i.second.name, *(float*) &i.second.data);
-                            break;
-                        case MaterialProperty::Type::Int:
-                            m_instance_material->SetInt(i.second.name, *(int*) &i.second.data);
-                            break;
-                        case MaterialProperty::Type::Texture:
-                            m_instance_material->SetTexture(i.second.name, i.second.texture);
-                            break;
-                    }
-                }
-            }
-            else
-            {
-                m_instance_material.reset();
-            }
-        }
-
-        if (m_material)
-        {
-            if (m_camera)
-            {
-                m_material->SetMatrix(VIEW_MATRIX, m_camera->GetViewMatrix());
-                m_material->SetMatrix(PROJECTION_MATRIX, m_camera->GetProjectionMatrix());
-            }
-        }
-
-        m_model_matrix_dirty = true;
+        this->SetMaterials({ material });
+    }
+    
+    void Renderer::SetMaterials(const Vector<Ref<Material>>& materials)
+    {
+        m_materials = materials;
     }
 
-    void Renderer::OnAddToCamera(Camera* camera)
+	void Renderer::EnableCastShadow(bool enable)
+	{
+		m_cast_shadow = enable;
+	}
+    
+	void Renderer::EnableRecieveShadow(bool enable)
+	{
+		m_recieve_shadow = enable;
+	}
+
+    void Renderer::SetLightmapIndex(int index)
     {
-		assert(m_camera == nullptr);
-		m_camera = camera;
+        m_lightmap_index = index;
+    }
+    
+    void Renderer::SetLightmapScaleOffset(const Vector4& vec)
+    {
+        m_lightmap_scale_offset = vec;
+    }
+    
+    Vector<filament::backend::RenderPrimitiveHandle> Renderer::GetPrimitives()
+    {
+        return Vector<filament::backend::RenderPrimitiveHandle>();
     }
 
-    void Renderer::OnRemoveFromCamera(Camera* camera)
-    {
-		assert(m_camera == camera);
-		m_camera = nullptr;
-    }
+	void Renderer::Prepare()
+	{
+		auto& driver = Engine::Instance()->GetDriverApi();
+		const auto& materials = this->GetMaterials();
 
-    void Renderer::MarkRendererOrderDirty()
-    {
-		if (m_camera)
+		for (int i = 0; i < materials.Size(); ++i)
 		{
-			m_camera->MarkRendererOrderDirty();
+			auto& material = materials[i];
+			if (material)
+			{
+				material->Prepare();
+			}
 		}
-    }
 
-    void Renderer::MarkInstanceCmdDirty()
-    {
-		if (m_camera)
+		if (!m_transform_uniform_buffer)
 		{
-			m_camera->MarkInstanceCmdDirty(this);
+			m_transform_uniform_buffer = driver.createUniformBuffer(sizeof(RendererUniforms), filament::backend::BufferUsage::DYNAMIC);
 		}
-    }
 
-    void Renderer::OnMatrixDirty()
-    {
-        m_model_matrix_dirty = true;
-    }
+		RendererUniforms renderer_uniforms;
+		renderer_uniforms.model_matrix = this->GetTransform()->GetLocalToWorldMatrix();
+		renderer_uniforms.lightmap_scale_offset = m_lightmap_scale_offset;
+		renderer_uniforms.lightmap_index = Vector4((float) m_lightmap_index);
 
-    void Renderer::Update()
-    {
-        if (m_model_matrix_dirty)
-        {
-            m_model_matrix_dirty = false;
-            this->SetInstanceMatrix(MODEL_MATRIX, this->GetLocalToWorldMatrix());
-        }
-
-        if (m_material)
-        {
-            m_material->UpdateUniformSets();
-        }
-
-        if (m_instance_material)
-        {
-            m_instance_material->UpdateUniformSets();
-        }
-    }
-
-    void Renderer::SetInstanceMatrix(const String& name, const Matrix4x4& mat)
-    {
-        if (m_material)
-        {
-            if (!m_instance_material)
-            {
-                m_instance_material = RefMake<Material>(m_material->GetShader());
-            }
-            
-            m_instance_material->SetMatrix(name, mat);
-        }
-    }
-
-    void Renderer::SetInstanceVectorArray(const String& name, const Vector<Vector4>& array)
-    {
-        if (m_material)
-        {
-            if (!m_instance_material)
-            {
-                m_instance_material = RefMake<Material>(m_material->GetShader());
-            }
-
-            m_instance_material->SetVectorArray(name, array);
-        }
-    }
+		void* buffer = driver.allocate(sizeof(RendererUniforms));
+		Memory::Copy(buffer, &renderer_uniforms, sizeof(RendererUniforms));
+		driver.loadUniformBuffer(m_transform_uniform_buffer, filament::backend::BufferDescriptor(buffer, sizeof(RendererUniforms)));
+	}
 }

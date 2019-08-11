@@ -1,6 +1,6 @@
 /*
 * Viry3D
-* Copyright 2014-2018 by Stack - stackos@qq.com
+* Copyright 2014-2019 by Stack - stackos@qq.com
 *
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ namespace Viry3D
 	const float Mathf::Rad2Deg = 57.2958f;
 	const float Mathf::MaxFloatValue = 3.402823466e+38F;
 	const float Mathf::MinFloatValue = -Mathf::MaxFloatValue;
+    const float Mathf::ToLinearSpace = 2.2f;
 
 	float Mathf::Lerp(float from, float to, float t, bool clamp_01)
 	{
